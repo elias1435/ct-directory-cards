@@ -1,0 +1,482 @@
+<?php
+
+/**
+ * Plugin Name: CT Directory Filter
+ * Description: Directory grid + filters + JSON inspector for CT profiles.
+ * Author: Counselingwise
+ * Version: 0.3.0
+ */
+
+if (!defined('ABSPATH')) exit;
+
+define('CTDIR_PLUGIN_FILE', __FILE__);
+define('CTDIR_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('CTDIR_PLUGIN_URL', plugin_dir_url(__FILE__));
+
+/**
+ * ----------------------------------------
+ * Assets (inline CSS/JS)
+ * ----------------------------------------
+ */
+add_action('wp_enqueue_scripts', function () {
+	$handle = 'ct-directory-cards';
+
+	$css = '/* minimal CSS for layout */
+  .ctdir-row-hero{background:#152534;color:#fff;padding:60px 20px;text-align:center}
+  .ctdir-row-hero select{max-width:420px;width:100%;padding:10px;border-radius:6px;border:1px solid #334}
+  .ctdir-row-hero a{color:#fff;display:inline-block;margin-top:10px;text-decoration:underline}
+  .ctdir-wrap{background:#fff;padding:50px 10px}
+  .ctdir-grid{display:grid;grid-template-columns:1fr;gap:22px}
+  @media(min-width:900px){.ctdir-grid{grid-template-columns:repeat(3,1fr)}}
+  .ctdir-cols{display:grid;grid-template-columns:1fr;gap:28px}
+  @media(min-width:1100px){.ctdir-cols{grid-template-columns:320px 1fr}}
+  .ctdir-filter .acc{border:1px solid #ddd;border-radius:8px;margin-bottom:10px}
+  .ctdir-filter .acc>button{width:100%;text-align:left;background:#f7f7f7;border:0;padding:12px 14px;font-weight:600;cursor:pointer;border-radius:8px;position:relative;padding-right:30px}
+  .ctdir-filter .acc>button:after{content:"\\25BC";position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;transition:transform .2s ease}
+  .ctdir-filter .acc.open>button:after{transform:translateY(-50%) rotate(180deg)}
+  .ctdir-filter .acc .panel{display:none;padding:12px 14px}
+  .ctdir-card{box-shadow:0 2px 10px rgba(0,0,0,.08);border-radius:10px;overflow:hidden;text-align:center;background:#fff}
+  .ctdir-card .hdr{background:#0e2c48;color:#fff;padding:12px 10px;text-transform:uppercase;font-size:13px;letter-spacing:.04em}
+  .ctdir-card .inner{padding:18px}
+  .ctdir-card .photo img{width:210px;height:210px;object-fit:cover;border-radius:50%;display:block;margin:0 auto 16px}
+  .ctdir-card .name{font-size:18px;margin:6px 0}
+  .ctdir-card .role{opacity:.8;margin-bottom:14px}
+  .ctdir-card .btn{display:inline-block;background:#ffc65c;color:#1a1a1a;padding:10px 16px;border-radius:24px;text-decoration:none;font-weight:600}
+  .ctdir-pagination{display:flex;gap:6px;justify-content:center;margin-top:22px}
+  .ctdir-pagination a,.ctdir-pagination span{border:1px solid #ddd;border-radius:4px;padding:6px 10px}
+  .ctdir-filter .checklist{display:grid;gap:6px}
+  .ctdir-filter .checklist label{display:block}
+  .ctdir-filter .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .ctdir-filter .chips label{border:1px solid #ddd;padding:6px 10px;border-radius:999px}
+  /* Spinner only on results section */
+  .ctdir .ctdir-cols section{position:relative}
+  .ctdir .ctdir-cols section.is-loading::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.6);backdrop-filter:blur(1px);z-index:10}
+  .ctdir .ctdir-cols section.is-loading::before{content:"";position:absolute;top:50%;left:50%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:3px solid rgba(0,0,0,.2);border-top-color:#0e2c48;animation:ctdirspin .8s linear infinite;z-index:11}
+  @keyframes ctdirspin{to{transform:rotate(360deg)}}
+  /* Fees slider */
+  .fee-range{display:flex;align-items:center;gap:8px}
+  .fee-range input[type=range]{width:40%}
+  ';
+	wp_register_style($handle, false, [], '0.3.0');
+	wp_add_inline_style($handle, $css);
+	wp_enqueue_style($handle);
+
+	$js = 'function ctdir_markLoading(form){
+    var section=form.closest(".ctdir")?.querySelector(".ctdir-cols section");
+    if(section) section.classList.add("is-loading");
+  }
+  function ctdir_submitNow(form,resetPage){
+    if(!form) return;
+    if(resetPage){
+      var pg=form.querySelector("input[name=pg]");
+      if(pg) pg.value=1;
+    }
+    ctdir_markLoading(form);
+    form.requestSubmit?form.requestSubmit():form.submit();
+  }
+  // Change => submit
+  document.addEventListener("change",function(e){
+    var f=e.target.closest(".ctdir-filter-form,.ctdir-hero-form");
+    if(f){ ctdir_submitNow(f,true); }
+  });
+  // Debounce search
+  var ctdir_t;
+  document.addEventListener("keyup",function(e){
+    if(!e.target.matches("input[type=text]")) return;
+    var f=e.target.closest(".ctdir-filter-form");
+    if(!f) return;
+    clearTimeout(ctdir_t);
+    ctdir_t=setTimeout(function(){ ctdir_submitNow(f,true); }, 500);
+  });
+  // Accordion toggle
+  document.addEventListener("click",function(e){
+    if(e.target.matches(".ctdir-filter .acc > button")){
+      e.preventDefault();
+      var acc=e.target.closest(".acc");
+      var p=acc.querySelector(".panel");
+      var open=acc.classList.toggle("open");
+      p.style.display=open?"block":"none";
+    }
+  });
+  // Pagination (preserve filters)
+  document.addEventListener("click",function(e){
+    var a=e.target.closest(".ctdir-pagination a");
+    if(!a) return;
+    var c=a.closest(".ctdir");
+    var f=c?.querySelector(".ctdir-filter-form");
+    if(!f) return;
+    e.preventDefault();
+    var m=a.href.match(/(?:[?&])pg=(\\d+)/);
+    var pg=f.querySelector("input[name=pg]")||document.createElement("input");
+    if(!pg.parentNode){ pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
+    pg.value=m?m[1]:1;
+    ctdir_submitNow(f,false);
+  });
+  // Reset button
+  document.addEventListener("click",function(e){
+    var btn=e.target.closest(".ctdir-reset");
+    if(!btn) return;
+    e.preventDefault();
+    var f=btn.closest("form"); if(!f) return;
+    f.reset();
+    f.querySelectorAll("select").forEach(s=>s.value="");
+    f.querySelectorAll("input[type=text],input[type=number]").forEach(i=>i.value="");
+    f.querySelectorAll("input[type=radio],input[type=checkbox]").forEach(i=>i.checked=false);
+    var prof=f.querySelector("input[name=profession]"); if(prof) prof.value="";
+    var pg=f.querySelector("input[name=pg]"); if(!pg){ pg=document.createElement("input"); pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
+    pg.value=1;
+    ctdir_submitNow(f,true);
+  });
+  // Scope spinner on any native submit
+  document.addEventListener("submit",function(e){
+    var s=e.target.closest(".ctdir")?.querySelector(".ctdir-cols section");
+    if(s) s.classList.add("is-loading");
+  }, true);';
+	wp_register_script($handle, '', [], '0.3.0', true);
+	wp_add_inline_script($handle, $js);
+	wp_enqueue_script($handle);
+});
+
+/**
+ * ----------------------------------------
+ * Helpers
+ * ----------------------------------------
+ */
+function ct_dir_card_image_size()
+{
+	return 'large';
+}
+
+function ct_dir_profile_image_url($post_id)
+{
+	$post_id = (int) $post_id;
+	// 1) rcp_photo from ct-core
+	$photo = get_post_meta($post_id, 'rcp_photo', true);
+	if ($photo && filter_var($photo, FILTER_VALIDATE_URL)) return $photo;
+	// 2) Featured image
+	if (function_exists('get_the_post_thumbnail_url')) {
+		$img = get_the_post_thumbnail_url($post_id, ct_dir_card_image_size());
+		if ($img) return $img;
+	}
+	// 3) ct-core placeholder (if available)
+	if (defined('CT_CORE_PLUGIN_URL')) {
+		return CT_CORE_PLUGIN_URL . '/dist/img/profile.png';
+	}
+	// 4) generic
+	return apply_filters('ct_dir/placeholder_image', 'https://www.gravatar.com/avatar/?d=mp&s=420');
+}
+
+function ct_dir_taxonomies()
+{
+	// map used by template and query builder
+	return array(
+		'profession'   => 'ct_profession',
+		'service_area' => 'service_area',
+		'insurance'    => 'ct_profile_insurance',
+		'values'       => 'ct_profile_values',
+		'years'        => 'ct_years_of_experience',
+		'credential'   => 'type-of-primary-credential',
+		'specialties'  => 'specialties-service',
+		'modality'     => 'modality',
+		'language'     => 'user_language',
+		'faith'        => 'faith',
+	);
+}
+
+function ct_dir_get_query()
+{
+	$q = array(
+		's'            => isset($_GET['q']) ? sanitize_text_field($_GET['q']) : '',
+		'pg'           => isset($_GET['pg']) ? max(1, intval($_GET['pg'])) : 1,
+		'zip'          => isset($_GET['zip']) ? preg_replace('/[^0-9]/', '', (string)$_GET['zip']) : '',
+		'radius'       => isset($_GET['radius']) ? intval($_GET['radius']) : 50,
+		'profession'   => isset($_GET['profession']) ? absint($_GET['profession']) : 0,
+		'service_area' => array_map('absint', isset($_GET['service_area']) ? (array)$_GET['service_area'] : []),
+		'insurance'    => array_map('absint', isset($_GET['insurance']) ? (array)$_GET['insurance'] : []),
+		'values'       => array_map('absint', isset($_GET['values']) ? (array)$_GET['values'] : []),
+		'years'        => array_map('absint', isset($_GET['years']) ? (array)$_GET['years'] : []),
+		'credential'   => array_map('absint', isset($_GET['credential']) ? (array)$_GET['credential'] : []),
+		'specialties'  => isset($_GET['specialties']) ? absint($_GET['specialties']) : 0,
+		'modality'     => isset($_GET['modality']) ? absint($_GET['modality']) : 0,
+		'language'     => isset($_GET['language']) ? absint($_GET['language']) : 0,
+		'faith'        => isset($_GET['faith']) ? absint($_GET['faith']) : 0,
+		'fees_min'     => isset($_GET['fees_min']) ? floatval($_GET['fees_min']) : 0,
+		'fees_max'     => isset($_GET['fees_max']) ? floatval($_GET['fees_max']) : 0,
+		'session'      => isset($_GET['session']) ? (array)$_GET['session'] : [],
+	);
+	return $q;
+}
+
+/**
+ * Build WP_Query based on request.
+ */
+function ct_dir_build_query($q, $tax)
+{
+	$paged = max(1, (int)$q['pg']);
+
+	$tax_query = array('relation' => 'AND');
+	if (!empty($q['profession']))   $tax_query[] = array('taxonomy' => $tax['profession'],  'field' => 'term_id', 'terms' => array($q['profession']));
+	if (!empty($q['service_area'])) $tax_query[] = array('taxonomy' => $tax['service_area'], 'field' => 'term_id', 'terms' => $q['service_area']);
+	if (!empty($q['insurance']))    $tax_query[] = array('taxonomy' => $tax['insurance'],   'field' => 'term_id', 'terms' => $q['insurance']);
+	if (!empty($q['values']))       $tax_query[] = array('taxonomy' => $tax['values'],      'field' => 'term_id', 'terms' => $q['values']);
+	if (!empty($q['years']))        $tax_query[] = array('taxonomy' => $tax['years'],       'field' => 'term_id', 'terms' => $q['years']);
+	if (!empty($q['credential']))   $tax_query[] = array('taxonomy' => $tax['credential'],  'field' => 'term_id', 'terms' => $q['credential']);
+	if (!empty($q['specialties']))  $tax_query[] = array('taxonomy' => $tax['specialties'], 'field' => 'term_id', 'terms' => array($q['specialties']));
+	if (!empty($q['modality']))     $tax_query[] = array('taxonomy' => $tax['modality'],    'field' => 'term_id', 'terms' => array($q['modality']));
+	if (!empty($q['language']))     $tax_query[] = array('taxonomy' => $tax['language'],    'field' => 'term_id', 'terms' => array($q['language']));
+	if (!empty($q['faith']))        $tax_query[] = array('taxonomy' => $tax['faith'],       'field' => 'term_id', 'terms' => array($q['faith']));
+
+	$meta_query = array('relation' => 'AND');
+
+	// Fees
+	$from = (float)$q['fees_min'];
+	$to = (float)$q['fees_max'];
+	if ($from || $to) {
+		if (!$from && $to) $from = 0;
+		if ($from && !$to) $to = 999999;
+		$meta_query[] = array('key' => 'rcp_fee', 'value' => array($from, $to), 'type' => 'NUMERIC', 'compare' => 'BETWEEN');
+	}
+
+	// In-person / Virtual
+	if (!empty($q['session'])) {
+		$or = array('relation' => 'OR');
+		foreach ((array)$q['session'] as $v) {
+			$or[] = array('key' => 'rcp_inperson_virtual', 'value' => $v, 'compare' => 'LIKE');
+		}
+		$meta_query[] = $or;
+	}
+
+	// Distance
+	$post__in = array();
+	if (!empty($q['zip'])) {
+		$post__in = apply_filters('ct_dir/filter_ids_by_distance', array(), $q['zip'], $q['radius']);
+		if (empty($post__in)) $post__in = array(0);
+	}
+
+	$args = array(
+		'post_type'      => 'ct-user-profile',
+		'post_status'    => 'publish',
+		's'              => $q['s'],
+		'posts_per_page' => 12,
+		'paged'          => $paged,
+	);
+
+	if (count($tax_query) > 1)  $args['tax_query']  = $tax_query;
+	if (count($meta_query) > 1) $args['meta_query'] = $meta_query;
+	if (!empty($post__in))      $args['post__in']   = $post__in;
+
+	return new WP_Query($args);
+}
+
+
+/**
+ * ----------------------------------------
+ * Shortcode: [ct_directory]
+ * ----------------------------------------
+ */
+add_shortcode('ct_directory', function ($atts = array(), $content = '') {
+	$tax  = ct_dir_taxonomies();
+	$q    = ct_dir_get_query();
+	$qry  = ct_dir_build_query($q, $tax);
+	$paged = max(1, (int)$q['pg']);
+
+	ob_start();
+	$tpl = CTDIR_PLUGIN_DIR . 'templates/directory.php';
+	if (!file_exists($tpl)) {
+		echo '<p>Template not found: templates/directory.php</p>';
+	} else {
+		// Make vars available to template scope: $q, $tax, $qry, $paged
+		include $tpl;
+	}
+	return ob_get_clean();
+});
+
+/**
+ * ----------------------------------------
+ * REST: Single profile JSON (safe)
+ * GET /wp-json/ct-dir/v1/profile?id=…|slug=…
+ * city/state returned as strings
+ * ----------------------------------------
+ */
+if (!function_exists('ctdir_register_profile_route')) {
+	function ctdir_register_profile_route()
+	{
+		if (!function_exists('register_rest_route')) return;
+		register_rest_route('ct-dir/v1', '/profile', array(
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'callback'            => 'ctdir_rest_profile_callback',
+		));
+	}
+	add_action('rest_api_init', 'ctdir_register_profile_route');
+}
+
+if (!function_exists('ctdir_rest_profile_callback')) {
+	function ctdir_rest_profile_callback($req)
+	{
+		// helpers
+		$meta_single = function ($post_id, $key) {
+			$v = get_post_meta($post_id, $key, true);
+			$v = maybe_unserialize($v);
+			if (is_array($v)) $v = reset($v);
+			return trim((string)$v);
+		};
+		$profile_image = function ($post_id) {
+			$photo = get_post_meta($post_id, 'rcp_photo', true);
+			if ($photo && filter_var($photo, FILTER_VALIDATE_URL)) return $photo;
+			if (function_exists('get_the_post_thumbnail_url')) {
+				$img = get_the_post_thumbnail_url($post_id, 'large');
+				if ($img) return $img;
+			}
+			if (defined('CT_CORE_PLUGIN_URL')) return CT_CORE_PLUGIN_URL . '/dist/img/profile.png';
+			return 'https://www.gravatar.com/avatar/?d=mp&s=420';
+		};
+
+		$id   = absint(isset($req['id']) ? $req['id'] : 0);
+		$slug = sanitize_title(isset($req['slug']) ? $req['slug'] : '');
+
+		// ---------- ID path (publish-only) ----------
+		if ($id) {
+			$p = get_post($id);
+			if (!$p || is_wp_error($p) || $p->post_type !== 'ct-user-profile' || $p->post_status !== 'publish') {
+				return new \WP_Error('not_found', 'Profile not found', array('status' => 404));
+			}
+		}
+
+		// ---------- Slug path (publish-only) ----------
+		if (!$id && $slug) {
+			// 1) Try name query (publish only)
+			$q = new \WP_Query(array(
+				'post_type'      => 'ct-user-profile',
+				'name'           => $slug,
+				'post_status'    => 'publish',
+				'fields'         => 'ids',
+				'posts_per_page' => 1,
+				'no_found_rows'  => true,
+			));
+			if ($q->have_posts()) {
+				$id = (int)$q->posts[0];
+			}
+
+			// 2) Fallback: get_page_by_path limited to publish (some hosts resolve CPTs differently)
+			if (!$id && function_exists('get_page_by_path')) {
+				$p2 = get_page_by_path($slug, OBJECT, 'ct-user-profile');
+				if ($p2 && !is_wp_error($p2) && $p2->post_status === 'publish') {
+					$id = (int)$p2->ID;
+				}
+			}
+
+			// 3) Safety: direct SQL by post_name (publish only)
+			if (!$id) {
+				global $wpdb;
+				$maybe_id = $wpdb->get_var($wpdb->prepare(
+					"SELECT ID FROM {$wpdb->posts}
+             WHERE post_type=%s AND post_status='publish' AND post_name=%s
+             LIMIT 1",
+					'ct-user-profile',
+					$slug
+				));
+				if ($maybe_id) $id = (int)$maybe_id;
+			}
+		}
+
+		if (!$id) {
+			return new \WP_Error('not_found', 'Profile not found', array('status' => 404));
+		}
+
+		// Normalize fields
+		$city  = $meta_single($id, 'rcp_city');
+		$state = $meta_single($id, 'rcp_state');
+		if ($state === '' && taxonomy_exists('service_area')) {
+			$terms = wp_get_post_terms($id, 'service_area');
+			if (!is_wp_error($terms) && !empty($terms)) {
+				$state = (string)$terms[0]->name;
+			}
+		}
+
+		// Taxonomies (publish-safe retrieval)
+		$tax_map = array();
+		$maybe_taxes = array(
+			'faith',
+			'user_language',
+			'modality',
+			'specialties-service',
+			'type-of-primary-credential',
+			'type-of-therapy',
+			'service_area',
+			'ct_profile_insurance',
+			'ct_profile_values',
+			'ct_years_of_experience',
+			'ct_profession'
+		);
+		foreach ($maybe_taxes as $tx) {
+			if (!taxonomy_exists($tx)) continue;
+			$t = wp_get_post_terms($id, $tx);
+			if (is_wp_error($t) || empty($t)) continue;
+			$tax_map[$tx] = array_map(function ($term) {
+				return array(
+					'id'   => (int)$term->term_id,
+					'slug' => $term->slug,
+					'name' => $term->name
+				);
+			}, $t);
+		}
+
+		return array(
+			'id'    => (int)$id,
+			'title' => get_the_title($id),
+			'url'   => get_permalink($id),
+			'city'  => $city,
+			'state' => $state,
+			'lat'   => $meta_single($id, '_ct_latitude'),
+			'lng'   => $meta_single($id, '_ct_longitude'),
+			'photo' => $profile_image($id),
+			'meta'  => get_post_meta($id),  // left raw for inspection
+			'taxonomies' => $tax_map,
+		);
+	}
+}
+
+
+/**
+ * ----------------------------------------
+ * Distance filter using ct-core ZIP→coords
+ *  apply_filters('ct_dir/filter_ids_by_distance', [], $zip, $miles)
+ * ----------------------------------------
+ */
+add_filter('ct_dir/filter_ids_by_distance', function ($ids, $zip, $miles) {
+	$zip   = trim($zip);
+	$miles = max(0, (int)$miles);
+	if (!$zip || !$miles) return array();
+
+	$lat = $lng = null;
+	if (class_exists('CT_Core\GMaps')) {
+		$coords = \CT_Core\GMaps::fetch_coordinates_from_zip($zip);
+		$lat = isset($coords['lat']) ? (float)$coords['lat'] : null;
+		$lng = isset($coords['lng']) ? (float)$coords['lng'] : null;
+	}
+	if ($lat === null || $lng === null) return array();
+
+	$q = new WP_Query(array(
+		'post_type'      => 'ct-user-profile',
+		'fields'         => 'ids',
+		'posts_per_page' => -1,
+		'no_found_rows'  => true,
+		'meta_query'     => array(
+			array('key' => '_ct_latitude',  'compare' => 'EXISTS'),
+			array('key' => '_ct_longitude', 'compare' => 'EXISTS'),
+		),
+	));
+
+	$keep = array();
+	foreach ($q->posts as $pid) {
+		$plat = (float) get_post_meta($pid, '_ct_latitude',  true);
+		$plng = (float) get_post_meta($pid, '_ct_longitude', true);
+		if (!$plat && !$plng) continue;
+		$theta = deg2rad($plng - $lng);
+		$dist  = acos(sin(deg2rad($lat)) * sin(deg2rad($plat)) + cos(deg2rad($lat)) * cos(deg2rad($plat)) * cos($theta));
+		$dist  = rad2deg($dist) * 60 * 1.1515; // miles
+		if ($dist <= $miles) $keep[] = $pid;
+	}
+	return $keep;
+}, 10, 3);
