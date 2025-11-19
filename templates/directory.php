@@ -81,7 +81,7 @@ if (! function_exists('ctdir_city_state')) {
 ?>
 <div class="ctdir">
   <!-- Row 1: Hero dropdown + link -->
-  <div class="ctdir-row-hero">
+  <div class="ctdir-row-hero" style="display: none;">
     <form method="get" class="ctdir-hero-form">
       <select name="profession" aria-label="Select a Profession">
         <option value="">Select a Profession</option>
@@ -107,113 +107,10 @@ if (! function_exists('ctdir_city_state')) {
           <input type="hidden" name="pg" value="<?php echo esc_attr($paged); ?>" />
           <input type="hidden" name="profession" value="<?php echo esc_attr($q['profession']); ?>" />
 
-          <div class="acc">
+          <div class="acc search-fields">
             <button type="button">Search</button>
             <div class="panel">
               <input type="text" name="q" value="<?php echo esc_attr($q['s']); ?>" placeholder="Search by keyword" />
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">Distance</button>
-            <div class="panel">
-              <input type="text" name="zip" value="<?php echo esc_attr($q['zip']); ?>" placeholder="Zip code" />
-              <div class="chips">
-                <label><input type="radio" name="radius" value="50" <?php checked($q['radius'], 50); ?> /> 50 miles</label>
-                <label><input type="radio" name="radius" value="100" <?php checked($q['radius'], 100); ?> /> 100 miles</label>
-                <label><input type="radio" name="radius" value="500" <?php checked($q['radius'], 500); ?> /> 500 miles</label>
-              </div>
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">State</button>
-            <div class="panel checklist">
-              <?php
-              $sa_terms = get_terms(array('taxonomy' => $tax['service_area'], 'hide_empty' => false));
-              if (! is_wp_error($sa_terms)) :
-                foreach ($sa_terms as $term) : ?>
-                  <label>
-                    <input type="checkbox" name="service_area[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['service_area'], true)); ?> />
-                    <?php echo esc_html($term->name); ?>
-                  </label>
-              <?php endforeach;
-              endif; ?>
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">Fees</button>
-            <div class="panel">
-              <label>Fee range</label>
-              <div class="fee-range">
-                <input type="range" name="fees_min" min="0" max="500" step="5"
-                  value="<?php echo esc_attr($q['fees_min'] ? $q['fees_min'] : 0); ?>"
-                  oninput="this.nextElementSibling.value=this.value">
-                <output><?php echo esc_html($q['fees_min'] ? $q['fees_min'] : 0); ?></output>
-                <span class="sep">–</span>
-                <input type="range" name="fees_max" min="0" max="500" step="5"
-                  value="<?php echo esc_attr($q['fees_max'] ? $q['fees_max'] : 0); ?>"
-                  oninput="this.nextElementSibling.value=this.value">
-                <output><?php echo esc_html($q['fees_max'] ? $q['fees_max'] : 0); ?></output>
-              </div>
-              <small>Drag sliders to set min/max session fee.</small>
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">Insurance</button>
-            <div class="panel checklist">
-              <?php
-              $ins_terms = get_terms(array('taxonomy' => $tax['insurance'], 'hide_empty' => false));
-              if (! is_wp_error($ins_terms)) :
-                foreach ($ins_terms as $term) : ?>
-                  <label>
-                    <input type="checkbox" name="insurance[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['insurance'], true)); ?> />
-                    <?php echo esc_html($term->name); ?>
-                  </label>
-              <?php endforeach;
-              endif; ?>
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">In Person / Virtual</button>
-            <div class="panel checklist">
-              <label><input type="checkbox" name="session[]" value="in_person" <?php checked(in_array('in_person', $q['session'], true)); ?> /> In person</label>
-              <label><input type="checkbox" name="session[]" value="virtual" <?php checked(in_array('virtual',   $q['session'], true)); ?> /> Virtual</label>
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">Years of experience</button>
-            <div class="panel checklist">
-              <?php
-              $yr_terms = get_terms(array('taxonomy' => $tax['years'], 'hide_empty' => false));
-              if (! is_wp_error($yr_terms)) :
-                foreach ($yr_terms as $term) : ?>
-                  <label>
-                    <input type="checkbox" name="years[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['years'], true)); ?> />
-                    <?php echo esc_html($term->name); ?>
-                  </label>
-              <?php endforeach;
-              endif; ?>
-            </div>
-          </div>
-
-          <div class="acc">
-            <button type="button">Values</button>
-            <div class="panel checklist">
-              <?php
-              $val_terms = get_terms(array('taxonomy' => $tax['values'], 'hide_empty' => false));
-              if (! is_wp_error($val_terms)) :
-                foreach ($val_terms as $term) : ?>
-                  <label>
-                    <input type="checkbox" name="values[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['values'], true)); ?> />
-                    <?php echo esc_html($term->name); ?>
-                  </label>
-              <?php endforeach;
-              endif; ?>
             </div>
           </div>
 
@@ -269,6 +166,141 @@ if (! function_exists('ctdir_city_state')) {
             </div>
           </div>
 
+          <!-- Type of Therapy -->
+          <div class="acc">
+            <button type="button">Type of Therapy</button>
+            <div class="panel checklist">
+              <?php
+              $ther_terms = get_terms(array(
+                'taxonomy'   => $tax['therapy'],   // must be 'type-of-therapy'
+                'hide_empty' => false,
+              ));
+              if (!is_wp_error($ther_terms) && !empty($ther_terms)):
+                foreach ($ther_terms as $term): ?>
+                  <label>
+                    <input type="checkbox"
+                      name="therapy[]"
+                      value="<?php echo esc_attr($term->term_id); ?>"
+                      <?php checked(in_array($term->term_id, (array)$q['therapy'], true)); ?> />
+                    <?php echo esc_html($term->name); ?>
+                  </label>
+              <?php endforeach;
+              else:
+                echo '<small>No therapy terms found.</small>';
+              endif;
+              ?>
+            </div>
+          </div>
+
+          <div class="acc">
+            <button type="button">In Person / Virtual</button>
+            <div class="panel checklist">
+              <label><input type="checkbox" name="session[]" value="in_person" <?php checked(in_array('in_person', $q['session'], true)); ?> /> In person</label>
+              <label><input type="checkbox" name="session[]" value="virtual" <?php checked(in_array('virtual',   $q['session'], true)); ?> /> Virtual</label>
+            </div>
+          </div>
+
+          <div class="acc">
+            <button type="button">Distance / Zip Code / City</button>
+            <div class="panel">
+              <input type="text" name="zip" value="<?php echo esc_attr($q['zip']); ?>" placeholder="Zip code" />
+              <div class="chips">
+                <label><input type="radio" name="radius" value="5" <?php checked($q['radius'], 5); ?> /> 5 miles</label>
+                <label><input type="radio" name="radius" value="15" <?php checked($q['radius'], 15); ?> /> 15 miles</label>
+                <label><input type="radio" name="radius" value="25" <?php checked($q['radius'], 25); ?> /> 25 miles</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="acc">
+            <button type="button">State</button>
+            <div class="panel checklist">
+              <?php
+              $sa_terms = get_terms(array('taxonomy' => $tax['service_area'], 'hide_empty' => false));
+              if (! is_wp_error($sa_terms)) :
+                foreach ($sa_terms as $term) : ?>
+                  <label>
+                    <input type="checkbox" name="service_area[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['service_area'], true)); ?> />
+                    <?php echo esc_html($term->name); ?>
+                  </label>
+              <?php endforeach;
+              endif; ?>
+            </div>
+          </div>
+
+          <div class="acc">
+            <button type="button">Fees</button>
+            <div class="panel">
+              <?php
+              $min_default = 0;
+              $max_default = 500;
+              $step        = 5;
+
+              // Carry current values or sane defaults
+              $fees_min = isset($q['fees_min']) ? (float)$q['fees_min'] : $min_default;
+              $fees_max = isset($q['fees_max']) ? (float)$q['fees_max'] : $max_default;
+
+              // Clamp to slider bounds
+              $fees_min = max($min_default, min($fees_min, $max_default));
+              $fees_max = max($min_default, min($fees_max, $max_default));
+              if ($fees_min > $fees_max) $fees_min = max($min_default, $fees_max - $step);
+              ?>
+              <div class="fee-dual"
+                data-min="<?php echo esc_attr($min_default); ?>"
+                data-max="<?php echo esc_attr($max_default); ?>"
+                data-step="<?php echo esc_attr($step); ?>">
+
+                <output class="fee-left">$<?php echo esc_html($fees_min); ?></output>
+
+                <div class="fee-track">
+                  <input
+                    type="range"
+                    class="fee-min"
+                    name="fees_min"
+                    min="<?php echo esc_attr($min_default); ?>"
+                    max="<?php echo esc_attr($max_default); ?>"
+                    step="<?php echo esc_attr($step); ?>"
+                    value="<?php echo esc_attr($fees_min); ?>"
+                    aria-label="Minimum session fee" />
+
+                  <input
+                    type="range"
+                    class="fee-max"
+                    name="fees_max"
+                    min="<?php echo esc_attr($min_default); ?>"
+                    max="<?php echo esc_attr($max_default); ?>"
+                    step="<?php echo esc_attr($step); ?>"
+                    value="<?php echo esc_attr($fees_max); ?>"
+                    aria-label="Maximum session fee" />
+
+                  <div class="fill" aria-hidden="true"></div>
+                </div>
+
+                <output class="fee-right">$<?php echo esc_html($fees_max); ?></output>
+              </div>
+
+              <small style="display: none;">Drag handles to set a minimum and maximum session fee.</small>
+            </div>
+          </div>
+
+
+
+          <div class="acc">
+            <button type="button">Insurance</button>
+            <div class="panel checklist">
+              <?php
+              $ins_terms = get_terms(array('taxonomy' => $tax['insurance'], 'hide_empty' => false));
+              if (! is_wp_error($ins_terms)) :
+                foreach ($ins_terms as $term) : ?>
+                  <label>
+                    <input type="checkbox" name="insurance[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['insurance'], true)); ?> />
+                    <?php echo esc_html($term->name); ?>
+                  </label>
+              <?php endforeach;
+              endif; ?>
+            </div>
+          </div>
+
           <div class="acc">
             <button type="button">Language</button>
             <div class="panel">
@@ -302,6 +334,38 @@ if (! function_exists('ctdir_city_state')) {
                 <?php endforeach;
                 endif; ?>
               </select>
+            </div>
+          </div>
+
+          <div class="acc" style="display: none;">
+            <button type="button">Years of experience</button>
+            <div class="panel checklist">
+              <?php
+              $yr_terms = get_terms(array('taxonomy' => $tax['years'], 'hide_empty' => false));
+              if (! is_wp_error($yr_terms)) :
+                foreach ($yr_terms as $term) : ?>
+                  <label>
+                    <input type="checkbox" name="years[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['years'], true)); ?> />
+                    <?php echo esc_html($term->name); ?>
+                  </label>
+              <?php endforeach;
+              endif; ?>
+            </div>
+          </div>
+
+          <div class="acc" style="display: none;">
+            <button type="button">Values</button>
+            <div class="panel checklist">
+              <?php
+              $val_terms = get_terms(array('taxonomy' => $tax['values'], 'hide_empty' => false));
+              if (! is_wp_error($val_terms)) :
+                foreach ($val_terms as $term) : ?>
+                  <label>
+                    <input type="checkbox" name="values[]" value="<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->term_id, $q['values'], true)); ?> />
+                    <?php echo esc_html($term->name); ?>
+                  </label>
+              <?php endforeach;
+              endif; ?>
             </div>
           </div>
 
