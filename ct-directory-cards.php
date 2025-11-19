@@ -3,7 +3,7 @@
 /**
  * Plugin Name: CT Directory Filter
  * Description: Directory grid + filters + JSON inspector for CT profiles.
- * Author: Muhammad Elias
+ * Author: Counselingwise
  * Version: 0.3.0
  */
 
@@ -81,7 +81,10 @@ add_action('wp_enqueue_scripts', function () {
   top:100%; width:0; height:0; border-left:6px solid transparent;
   border-right:6px solid transparent; border-top:6px solid #0e2c48;
 }
-.fee-track .fee-tip.stack{ transform:translate(-50%,-24px); } /* lift when close */
+.pt-big{padding-top: 30px !important;}
+.fee-track .fee-tip.stack{ transform:translate(-50%,-24px); }
+.fee-dual output{display:inline-flex;gap:1px;align-items:center;font-weight:600}
+.fee-dual .fee-label{opacity:.7;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
 ';
 
 	wp_register_style($handle, false, [], '0.3.2');
@@ -190,45 +193,43 @@ document.addEventListener("submit",function(e){
     var fill  = el.querySelector(".fill");
     var outL  = el.querySelector(".fee-left");
     var outR  = el.querySelector(".fee-right");
+    var leftVal  = outL ? outL.querySelector(".fee-val") : null;
+    var rightVal = outR ? outR.querySelector(".fee-val") : null;
     var track = el.querySelector(".fee-track");
     if(!rMin || !rMax || !fill || !track) return;
 
-    // tooltips (auto-create if missing)
+    // tooltips (auto-create)
     var tipMin = track.querySelector(".fee-tip.min");
     var tipMax = track.querySelector(".fee-tip.max");
     if(!tipMin){ tipMin = document.createElement("span"); tipMin.className = "fee-tip min"; track.appendChild(tipMin); }
     if(!tipMax){ tipMax = document.createElement("span"); tipMax.className = "fee-tip max"; track.appendChild(tipMax); }
 
-    // keep outer labels fixed to bounds
-    if(outL) outL.textContent = "$" + Math.round(minBound);
-    if(outR) outR.textContent = "$" + Math.round(maxBound);
-
     function sync(src){
       var v1 = clamp(parseFloat(rMin.value)||minBound, minBound, maxBound);
       var v2 = clamp(parseFloat(rMax.value)||maxBound, minBound, maxBound);
 
-      // Prevent crossing: keep at least one step between thumbs
       if (v1 > v2 - step){
         if (src === rMin) { v2 = clamp(v1 + step, minBound, maxBound); rMax.value = v2; }
         else              { v1 = clamp(v2 - step, minBound, maxBound); rMin.value = v1; }
       }
 
-      // Fill positioning
       var p1 = pct(v1, minBound, maxBound);
       var p2 = pct(v2, minBound, maxBound);
       fill.style.left  = p1 + "%";
       fill.style.right = (100 - p2) + "%";
 
-      // Tooltip text + position
+      // tooltips
       tipMin.textContent = "$" + Math.round(v1);
       tipMax.textContent = "$" + Math.round(v2);
       tipMin.style.left = p1 + "%";
       tipMax.style.left = p2 + "%";
-
-      // If tips get too close, stack them to avoid overlap
-      var close = (p2 - p1) < 6; // percent threshold
+      var close = (p2 - p1) < 6;
       tipMin.classList.toggle("stack", close);
       tipMax.classList.toggle("stack", close);
+
+      // update ONLY the numeric parts in the outputs; keep "Min"/"Max" spans intact
+      if (leftVal)  leftVal.textContent  = Math.round(minBound);  // fixed bound
+      if (rightVal) rightVal.textContent = Math.round(maxBound);  // fixed bound
     }
 
     if (!el.__ctdirInited.listeners){
@@ -237,13 +238,11 @@ document.addEventListener("submit",function(e){
       el.__ctdirInited.listeners = true;
     }
 
-    // expose refresh hook for reset or dynamic changes
     el.__ctdirRefresh = function(){
       if (!rMin.value) rMin.value = rMin.getAttribute("min") || minBound;
       if (!rMax.value) rMax.value = rMax.getAttribute("max") || maxBound;
-      // keep outer labels fixed
-      if(outL) outL.textContent = "$" + Math.round(minBound);
-      if(outR) outR.textContent = "$" + Math.round(maxBound);
+      if (leftVal)  leftVal.textContent  = Math.round(minBound);
+      if (rightVal) rightVal.textContent = Math.round(maxBound);
       sync();
     };
 
