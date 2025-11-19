@@ -230,7 +230,7 @@ if (! function_exists('ctdir_city_state')) {
 
           <div class="acc">
             <button type="button">Fees</button>
-            <div class="panel">
+            <div class="panel pt-big">
               <?php
               $min_default = 0;
               $max_default = 500;
@@ -250,33 +250,16 @@ if (! function_exists('ctdir_city_state')) {
                 data-max="<?php echo esc_attr($max_default); ?>"
                 data-step="<?php echo esc_attr($step); ?>">
 
-                <output class="fee-left">$<?php echo esc_html($fees_min); ?></output>
+                <output class="fee-left">$<span class="fee-val"><?php echo esc_html($fees_min ?: 0); ?></span><span class="fee-label">Min</span></output>
 
                 <div class="fee-track">
-                  <input
-                    type="range"
-                    class="fee-min"
-                    name="fees_min"
-                    min="<?php echo esc_attr($min_default); ?>"
-                    max="<?php echo esc_attr($max_default); ?>"
-                    step="<?php echo esc_attr($step); ?>"
-                    value="<?php echo esc_attr($fees_min); ?>"
-                    aria-label="Minimum session fee" />
-
-                  <input
-                    type="range"
-                    class="fee-max"
-                    name="fees_max"
-                    min="<?php echo esc_attr($min_default); ?>"
-                    max="<?php echo esc_attr($max_default); ?>"
-                    step="<?php echo esc_attr($step); ?>"
-                    value="<?php echo esc_attr($fees_max); ?>"
-                    aria-label="Maximum session fee" />
+                  <input class="fee-min" type="range" name="fees_min" min="0" max="500" step="5" value="<?php echo esc_attr($fees_min ?: 0); ?>">
+                  <input class="fee-max" type="range" name="fees_max" min="0" max="500" step="5" value="<?php echo esc_attr($fees_max ?: 500); ?>">
 
                   <div class="fill" aria-hidden="true"></div>
                 </div>
 
-                <output class="fee-right">$<?php echo esc_html($fees_max); ?></output>
+                <output class="fee-right">$<span class="fee-val"><?php echo esc_html($fees_max ?: 500); ?></span><span class="fee-label">Max</span></output>
               </div>
 
               <small style="display: none;">Drag handles to set a minimum and maximum session fee.</small>
