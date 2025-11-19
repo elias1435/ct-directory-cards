@@ -60,14 +60,40 @@ add_action('wp_enqueue_scripts', function () {
 /* --- Dual fee slider --- */
 .fee-dual{display:flex;align-items:center;gap:4px}
 .fee-dual .fee-left,.fee-dual .fee-right{min-width:20px;text-align:center;font-weight:600}
-.fee-track{position:relative;flex:1;height:32px}
-.fee-track input[type=range]{-webkit-appearance:none;appearance:none;position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);width:100%;height:24px;background:transparent;pointer-events:none;margin:0}
-.fee-track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#0e2c48;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer}
-.fee-track input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#0e2c48;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2);pointer-events:auto;cursor:pointer}
+.fee-track{position:relative;flex:1;height:36px}
+.fee-track input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  width:100%;height:36px; /* bigger hit area */
+  background:transparent;
+  margin:0;
+  pointer-events:auto;     /* <<< was none; enable mouse/touch */
+  z-index:2;
+}
+/* Thumbs visible above everything */
+.fee-track input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  background:#0e2c48;border:2px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.2);
+  cursor:pointer; position:relative; z-index:3;
+}
+.fee-track input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;border-radius:50%;
+  background:#0e2c48;border:2px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.2);
+  cursor:pointer; position:relative; z-index:3;
+}
+/* Put the currently grabbed thumb on top */
+.fee-track input.on-top{ z-index:4; }
 /* base track */
 .fee-track::before{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:6px;background:#e9edf3}
 /* fill between min/max */
 .fee-track .fill{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:6px;background:#0e2c48}
+.fee-track::before,
+.fee-track .fill{
+  pointer-events:none;
+}
 /* --- Dual fee slider tooltips --- */
 .fee-track{position:relative}
 .fee-track .fee-tip{
@@ -76,6 +102,8 @@ add_action('wp_enqueue_scripts', function () {
   font-size:12px; line-height:1; white-space:nowrap; pointer-events:none;
   box-shadow:0 1px 2px rgba(0,0,0,.2); z-index:12
 }
+.fee-track::before{ z-index:0; }
+.fee-track .fill{   z-index:1; }
 .fee-track .fee-tip:after{
   content:""; position:absolute; left:50%; transform:translateX(-50%);
   top:100%; width:0; height:0; border-left:6px solid transparent;
@@ -96,69 +124,78 @@ add_action('wp_enqueue_scripts', function () {
   var section=form.closest(".ctdir")?.querySelector(".ctdir-cols section");
   if(section) section.classList.add("is-loading");
 }
-function ctdir_submitNow(form,resetPage){
+function ctdir_submitNow(form, resetPage){
   if(!form) return;
   if(resetPage){
     var pg=form.querySelector("input[name=pg]");
     if(pg) pg.value=1;
   }
   ctdir_markLoading(form);
-  form.requestSubmit?form.requestSubmit():form.submit();
+  if(form.requestSubmit){ form.requestSubmit(); } else { form.submit(); }
 }
-// Change => submit (hero + sidebar)
-document.addEventListener("change",function(e){
+
+/* ---------- Change => submit (hero + sidebar) ---------- */
+document.addEventListener("change", function(e){
   var f=e.target.closest(".ctdir-filter-form,.ctdir-hero-form");
   if(f){ ctdir_submitNow(f,true); }
 });
-// Debounce search
+
+/* ---------- Debounce text search ---------- */
 var ctdir_t;
-document.addEventListener("keyup",function(e){
+document.addEventListener("keyup", function(e){
   if(!e.target.matches("input[type=text]")) return;
   var f=e.target.closest(".ctdir-filter-form");
   if(!f) return;
   clearTimeout(ctdir_t);
   ctdir_t=setTimeout(function(){ ctdir_submitNow(f,true); }, 500);
 });
-// Accordion toggle
-document.addEventListener("click",function(e){
+
+/* ---------- Accordion toggle ---------- */
+document.addEventListener("click", function(e){
   if(e.target.matches(".ctdir-filter .acc > button")){
     e.preventDefault();
     var acc=e.target.closest(".acc");
     var p=acc.querySelector(".panel");
     var open=acc.classList.toggle("open");
-    p.style.display=open?"block":"none";
+    if(p) p.style.display=open?"block":"none";
   }
 });
-// Pagination (preserve filters)
-document.addEventListener("click",function(e){
+
+/* ---------- Pagination (preserve filters) ---------- */
+document.addEventListener("click", function(e){
   var a=e.target.closest(".ctdir-pagination a");
   if(!a) return;
   var c=a.closest(".ctdir");
   var f=c?.querySelector(".ctdir-filter-form");
   if(!f) return;
   e.preventDefault();
-  var m=a.href.match(/(?:[?&])pg=(\\d+)/);
+  var m=a.href.match(/(?:[?&])pg=(\d+)/);
   var pg=f.querySelector("input[name=pg]")||document.createElement("input");
   if(!pg.parentNode){ pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
   pg.value=m?m[1]:1;
   ctdir_submitNow(f,false);
 });
-// Reset button
-document.addEventListener("click",function(e){
+
+/* ---------- Reset button ---------- */
+document.addEventListener("click", function(e){
   var btn=e.target.closest(".ctdir-reset");
   if(!btn) return;
   e.preventDefault();
   var f=btn.closest("form"); if(!f) return;
 
+  // reset all form controls
   f.reset();
-  f.querySelectorAll("select").forEach(s=>s.value="");
-  f.querySelectorAll("input[type=text],input[type=number]").forEach(i=>i.value="");
-  f.querySelectorAll("input[type=radio],input[type=checkbox]").forEach(i=>i.checked=false);
+  f.querySelectorAll("select").forEach(function(s){ s.value=""; });
+  f.querySelectorAll("input[type=text],input[type=number]").forEach(function(i){ i.value=""; });
+  f.querySelectorAll("input[type=radio],input[type=checkbox]").forEach(function(i){ i.checked=false; });
+
+  // clear hidden profession & page
   var prof=f.querySelector("input[name=profession]"); if(prof) prof.value="";
-  var pg=f.querySelector("input[name=pg]"); if(!pg){ pg=document.createElement("input"); pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
+  var pg=f.querySelector("input[name=pg]"); 
+  if(!pg){ pg=document.createElement("input"); pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
   pg.value=1;
 
-  // refresh fee dual slider visuals to defaults
+  // refresh fee dual slider visuals to bounds
   f.querySelectorAll(".fee-dual").forEach(function(el){
     var minBound = +el.getAttribute("data-min") || 0;
     var maxBound = +el.getAttribute("data-max") || 500;
@@ -171,13 +208,16 @@ document.addEventListener("click",function(e){
 
   ctdir_submitNow(f,true);
 });
-// Scope spinner on any native submit
-document.addEventListener("submit",function(e){
+
+/* ---------- Scope spinner on native submit ---------- */
+document.addEventListener("submit", function(e){
   var s=e.target.closest(".ctdir")?.querySelector(".ctdir-cols section");
   if(s) s.classList.add("is-loading");
 }, true);
 
-/* ---- Dual fee slider init (visual sync + constraints + tooltips) ---- */
+/* =======================================================
+   Dual fee slider (two thumbs) with tooltips + click track
+   ======================================================= */
 (function(){
   function clamp(v,min,max){ v=+v; return isNaN(v)?min:Math.min(max, Math.max(min,v)); }
   function pct(v,min,max){ return ((v-min)/(max-min))*100; }
@@ -208,6 +248,7 @@ document.addEventListener("submit",function(e){
       var v1 = clamp(parseFloat(rMin.value)||minBound, minBound, maxBound);
       var v2 = clamp(parseFloat(rMax.value)||maxBound, minBound, maxBound);
 
+      // keep one step between
       if (v1 > v2 - step){
         if (src === rMin) { v2 = clamp(v1 + step, minBound, maxBound); rMax.value = v2; }
         else              { v1 = clamp(v2 - step, minBound, maxBound); rMin.value = v1; }
@@ -227,10 +268,37 @@ document.addEventListener("submit",function(e){
       tipMin.classList.toggle("stack", close);
       tipMax.classList.toggle("stack", close);
 
-      // update ONLY the numeric parts in the outputs; keep "Min"/"Max" spans intact
-      if (leftVal)  leftVal.textContent  = Math.round(minBound);  // fixed bound
-      if (rightVal) rightVal.textContent = Math.round(maxBound);  // fixed bound
+      // keep bound labels stable (do NOT overwrite inner spans)
+      if (leftVal)  leftVal.textContent  = Math.round(minBound);
+      if (rightVal) rightVal.textContent = Math.round(maxBound);
     }
+
+    // thumb z-index management
+    function bringToFront(input){
+      rMin.classList.remove("on-top");
+      rMax.classList.remove("on-top");
+      input.classList.add("on-top");
+    }
+    ["pointerdown","mousedown","touchstart"].forEach(function(evt){
+      rMin.addEventListener(evt, function(){ bringToFront(rMin); });
+      rMax.addEventListener(evt, function(){ bringToFront(rMax); });
+    });
+
+    // click track to move nearest thumb
+    track.addEventListener("pointerdown", function(e){
+      if (e.target === rMin || e.target === rMax) return; // native drag
+      var rect = track.getBoundingClientRect();
+      var p = (e.clientX - rect.left) / rect.width; // 0..1
+      var raw = minBound + p * (maxBound - minBound);
+      var val = Math.round(raw / step) * step;
+      var curMin = parseFloat(rMin.value)||minBound;
+      var curMax = parseFloat(rMax.value)||maxBound;
+      var target = (Math.abs(val - curMin) <= Math.abs(val - curMax)) ? rMin : rMax;
+      target.value = val;
+      bringToFront(target);
+      sync(target);
+      target.dispatchEvent(new Event("change", {bubbles:true}));
+    });
 
     if (!el.__ctdirInited.listeners){
       rMin.addEventListener("input", function(){ sync(rMin); });
@@ -238,6 +306,7 @@ document.addEventListener("submit",function(e){
       el.__ctdirInited.listeners = true;
     }
 
+    // external refresh hook (used by reset)
     el.__ctdirRefresh = function(){
       if (!rMin.value) rMin.value = rMin.getAttribute("min") || minBound;
       if (!rMax.value) rMax.value = rMax.getAttribute("max") || maxBound;
@@ -258,8 +327,7 @@ document.addEventListener("submit",function(e){
   } else {
     initAll();
   }
-})();
-';
+})();';
 
 	wp_register_script($handle, '', [], '0.3.2', true);
 	wp_add_inline_script($handle, $js);
