@@ -3,7 +3,7 @@
 /**
  * Plugin Name: CT Directory Filter
  * Description: Directory grid + filters + JSON inspector for CT profiles.
- * Author: Counselingwise
+ * Author: Muhammad Elias
  * Version: 0.3.0
  */
 
