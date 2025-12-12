@@ -3,8 +3,8 @@
 /**
  * Plugin Name: CT Directory Filter
  * Description: Directory grid + filters + JSON inspector for CT profiles.
- * Author: Muhammad Elias
- * Version: 0.3.0
+ * Author: Counselingwise
+ * Version: 0.4.1
  */
 
 if (!defined('ABSPATH')) exit;
@@ -21,21 +21,46 @@ define('CTDIR_PLUGIN_URL', plugin_dir_url(__FILE__));
 add_action('wp_enqueue_scripts', function () {
 	$handle = 'ct-directory-cards';
 
-	/* ---------- Inline CSS (kept minimal & scoped) ---------- */
-	$css = '/* minimal CSS for layout */
+	/* ---------- Inline CSS (scoped) ---------- */
+	$css = <<<'CSS'
+/* Layout shell */
+.ctdir{width:100%;}
+.ctdir .ctdir-cols{display:grid;grid-template-columns:1fr;gap:28px}
+@media(min-width:1100px){.ctdir .ctdir-cols{grid-template-columns:320px 1fr}}
+.hide-item {display: none !important;}
+/* Grid columns safe-guard (never collapse) */
+.ctdir .ctdir-grid{display:grid;grid-template-columns:1fr;gap:22px;min-width:0}
+@media(min-width:768px){.ctdir .ctdir-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.ctdir .ctdir-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* Hero */
 .ctdir-row-hero{background:#152534;color:#fff;padding:60px 20px;text-align:center}
-.ctdir-row-hero select{max-width:420px;width:100%;padding:10px;border-radius:6px;border:1px solid #334}
-.ctdir-row-hero a{color:#fff;display:inline-block;margin-top:10px;text-decoration:underline}
+.ctdir-row-hero .hero-grid{display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr;align-items:end;max-width:800px;margin:0 auto}
+.ctdir-row-hero .hero-field{display:flex;flex-direction:column;text-align:left}
+.ctdir-row-hero .hero-label{font-size:12px;opacity:.9;margin:0 0 6px;text-transform:uppercase;letter-spacing:.03em}
+.ctdir-row-hero select{width:100%;max-width:420px;padding:10px;border-radius:6px;border:1px solid #334;background:#fff;color:#000}
+.ctdir-row-hero .hero-checks label{display:inline-flex;align-items:center;gap:6px;margin-right:12px}
+@media (max-width:1024px){ .ctdir-row-hero .hero-grid{ grid-template-columns: 1fr 1fr; } }
+@media (max-width:640px){ .ctdir-row-hero .hero-grid{ grid-template-columns: 1fr; } }
+
+/* Wrapper */
 .ctdir-wrap{background:#fff;padding:50px 10px}
-.ctdir-grid{display:grid;grid-template-columns:1fr;gap:22px}
-@media(min-width:900px){.ctdir-grid{grid-template-columns:repeat(3,1fr)}}
-.ctdir-cols{display:grid;grid-template-columns:1fr;gap:28px}
-@media(min-width:1100px){.ctdir-cols{grid-template-columns:320px 1fr}}
+
+/* Filter accordions */
 .ctdir-filter .acc{border:1px solid #ddd;border-radius:8px;margin-bottom:10px}
 .ctdir-filter .acc>button{width:100%;text-align:left;background:#f7f7f7;border:0;padding:12px 14px;font-weight:600;cursor:pointer;border-radius:8px;position:relative;padding-right:30px}
-.ctdir-filter .acc>button:after{content:"\\25BC";position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;transition:transform .2s ease}
+.ctdir-filter .acc>button:after{content:"\25BC";position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;transition:transform .2s ease}
 .ctdir-filter .acc.open>button:after{transform:translateY(-50%) rotate(180deg)}
 .ctdir-filter .acc .panel{display:none;padding:12px 14px}
+.search-fields input{height:40px;padding:10px !important;width:100%;border-radius:25px}
+.acc .panel select{width:100%;height:40px;padding:5px;border:1px solid #00000055;border-radius:25px}
+.ctdir-filter-form input[name="zip"]{width:100%;margin-bottom:10px;border:1px solid #00000055;height:40px;padding:10px;border-radius:25px}
+.ctdir-filter .checklist{display:grid;gap:6px}
+.ctdir-filter .checklist label{display:block}
+.ctdir-filter .chips{display:flex;flex-wrap:wrap;gap:8px}
+.ctdir-filter .chips label{border:1px solid #ddd;padding:6px 10px;border-radius:999px}
+
+/* Cards */
 .ctdir-card{box-shadow:0 2px 10px rgba(0,0,0,.08);border-radius:10px;overflow:hidden;text-align:center;background:#fff}
 .ctdir-card .hdr{background:#0e2c48;color:#fff;padding:12px 10px;text-transform:uppercase;font-size:13px;letter-spacing:.04em}
 .ctdir-card .inner{padding:18px}
@@ -43,293 +68,449 @@ add_action('wp_enqueue_scripts', function () {
 .ctdir-card .name{font-size:18px;margin:6px 0}
 .ctdir-card .role{opacity:.8;margin-bottom:14px}
 .ctdir-card .btn{display:inline-block;background:#ffc65c;color:#1a1a1a;padding:10px 16px;border-radius:24px;text-decoration:none;font-weight:600}
+
+/* Pagination */
 .ctdir-pagination{display:flex;gap:6px;justify-content:center;margin-top:22px}
 .ctdir-pagination a,.ctdir-pagination span{border:1px solid #ddd;border-radius:4px;padding:6px 10px}
-.ctdir-filter .checklist{display:grid;gap:6px}
-.ctdir-filter .checklist label{display:block}
-.ctdir-filter .chips{display:flex;flex-wrap:wrap;gap:8px}
-.ctdir-filter .chips label{border:1px solid #ddd;padding:6px 10px;border-radius:999px}
-/* Spinner only on results section */
-.ctdir .ctdir-cols section{position:relative}
+
+/* Spinner (results only) */
+.ctdir .ctdir-cols section{position:relative;min-width:0}
 .ctdir .ctdir-cols section.is-loading::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.6);backdrop-filter:blur(1px);z-index:10}
 .ctdir .ctdir-cols section.is-loading::before{content:"";position:absolute;top:50%;left:50%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:3px solid rgba(0,0,0,.2);border-top-color:#0e2c48;animation:ctdirspin .8s linear infinite;z-index:11}
 @keyframes ctdirspin{to{transform:rotate(360deg)}}
-.search-fields input{height:40px;padding:10px !important;width:100%;border-radius:25px}
-.acc .panel select{width:100%;height:40px;padding:5px;border:1px solid #00000055;border-radius:25px}
-.ctdir-filter-form input[name="zip"]{width:100%;margin-bottom:10px;border:1px solid #00000055;height:40px;padding:10px;border-radius:25px}
-/* --- Dual fee slider --- */
-.fee-dual{display:flex;align-items:center;gap:4px}
-.fee-dual .fee-left,.fee-dual .fee-right{min-width:20px;text-align:center;font-weight:600}
-.fee-track{position:relative;flex:1;height:36px}
-.fee-track input[type=range]{
-  -webkit-appearance:none;appearance:none;
-  position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
-  width:100%;height:36px; /* bigger hit area */
-  background:transparent;
-  margin:0;
-  pointer-events:auto;     /* <<< was none; enable mouse/touch */
-  z-index:2;
-}
-/* Thumbs visible above everything */
-.fee-track input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;appearance:none;
-  width:18px;height:18px;border-radius:50%;
-  background:#0e2c48;border:2px solid #fff;
-  box-shadow:0 0 0 1px rgba(0,0,0,.2);
-  cursor:pointer; position:relative; z-index:3;
-}
-.fee-track input[type=range]::-moz-range-thumb{
-  width:18px;height:18px;border-radius:50%;
-  background:#0e2c48;border:2px solid #fff;
-  box-shadow:0 0 0 1px rgba(0,0,0,.2);
-  cursor:pointer; position:relative; z-index:3;
-}
-/* Put the currently grabbed thumb on top */
-.fee-track input.on-top{ z-index:4; }
-/* base track */
-.fee-track::before{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:6px;background:#e9edf3}
-/* fill between min/max */
-.fee-track .fill{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:6px;background:#0e2c48}
-.fee-track::before,
-.fee-track .fill{
-  pointer-events:none;
-}
-/* --- Dual fee slider tooltips --- */
-.fee-track{position:relative}
-.fee-track .fee-tip{
-  position:absolute; bottom:100%; transform:translate(-50%,-6px);
-  background:#0e2c48; color:#fff; padding:3px 6px; border-radius:4px;
-  font-size:12px; line-height:1; white-space:nowrap; pointer-events:none;
-  box-shadow:0 1px 2px rgba(0,0,0,.2); z-index:12
-}
-.fee-track::before{ z-index:0; }
-.fee-track .fill{   z-index:1; }
-.fee-track .fee-tip:after{
-  content:""; position:absolute; left:50%; transform:translateX(-50%);
-  top:100%; width:0; height:0; border-left:6px solid transparent;
-  border-right:6px solid transparent; border-top:6px solid #0e2c48;
-}
-.pt-big{padding-top: 30px !important;}
-.fee-track .fee-tip.stack{ transform:translate(-50%,-24px); }
-.fee-dual output{display:inline-flex;gap:1px;align-items:center;font-weight:600}
-.fee-dual .fee-label{opacity:.7;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
-';
 
-	wp_register_style($handle, false, [], '0.3.2');
+/* Dual fee slider */
+.pt-big{padding-top: 30px !important;}
+.fee-dual{display:flex;align-items:center;gap:4px}
+.fee-dual output{display:inline-flex;gap:4px;align-items:center;font-weight:600}
+.fee-dual .fee-left,.fee-dual .fee-right{min-width:20px;text-align:center;font-weight:600}
+.fee-dual .fee-label{opacity:.7;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.fee-track{position:relative;flex:1;height:36px}
+.fee-track input[type=range]{-webkit-appearance:none;appearance:none;position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);width:100%;height:36px;background:transparent;margin:0;pointer-events:auto;z-index:2}
+.fee-track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#0e2c48;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2);cursor:pointer;position:relative;z-index:3}
+.fee-track input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#0e2c48;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2);cursor:pointer;position:relative;z-index:3}
+.fee-track input.on-top{ z-index:4; }
+.fee-track::before{content:"";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:6px;background:#e9edf3}
+.fee-track .fill{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:6px;background:#0e2c48;pointer-events:none;z-index:1}
+.fee-track .fee-tip{position:absolute; bottom:100%; transform:translate(-50%,-6px); background:#0e2c48; color:#fff; padding:3px 6px; border-radius:4px; font-size:12px; line-height:1; white-space:nowrap; pointer-events:none; box-shadow:0 1px 2px rgba(0,0,0,.2); z-index:12}
+.fee-track .fee-tip:after{content:""; position:absolute; left:50%; transform:translateX(-50%); top:100%; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:6px solid #0e2c48}
+.fee-track .fee-tip.stack{ transform:translate(-50%,-24px); }
+CSS;
+
+	wp_register_style($handle, false, [], '0.4.1');
 	wp_add_inline_style($handle, $css);
 	wp_enqueue_style($handle);
 
-	/* ---------- Inline JS ---------- */
-	$js = 'function ctdir_markLoading(form){
-  var section=form.closest(".ctdir")?.querySelector(".ctdir-cols section");
-  if(section) section.classList.add("is-loading");
-}
-function ctdir_submitNow(form, resetPage){
-  if(!form) return;
-  if(resetPage){
-    var pg=form.querySelector("input[name=pg]");
-    if(pg) pg.value=1;
+	/* ---------- Inline JS (ES5-safe, with guards + coalescing) ---------- */
+	$js = <<<'JS'
+function matches(el, sel){var p=Element.prototype;var f=p.matches||p.msMatchesSelector||p.webkitMatchesSelector;return f.call(el,sel)}
+function closest(el, sel){if(!el)return null;if(el.closest)return el.closest(sel);while(el&&el.nodeType===1){if(matches(el,sel))return el;el=el.parentNode}return null}
+function toArray(x){return Array.prototype.slice.call(x||[],0)}
+function enc(s){return encodeURIComponent(s)} function dec(s){try{return decodeURIComponent(s)}catch(e){return s}}
+
+var ctdirReqSeq = 0;
+var ctdirActiveController = null;
+
+function markLoading(node){var c=closest(node,".ctdir");var s=c?c.querySelector(".ctdir-cols section"):null;if(s)s.classList.add("is-loading")}
+function unmarkLoading(node){var c=closest(node,".ctdir");var s=c?c.querySelector(".ctdir-cols section"):null;if(s)s.classList.remove("is-loading")}
+
+/* ----- PARAMS: collect + coalesce hero + sidebar (dedupe) ----- */
+function collectParams(container){
+  var obj = {};
+
+  function put(k, v, isArrayName){
+    if(v==null) return;
+    v=String(v);
+    if(v.replace(/^\s+|\s+$/g,'')==='') return;
+    if(isArrayName || /\[\]$/.test(k)){
+      k = k.replace(/\[\]$/,'');
+      if(!obj[k]) obj[k]=[];
+      if(obj[k].indexOf(v)===-1) obj[k].push(v);
+    } else {
+      if(typeof obj[k]==='undefined') obj[k]=v;
+      else {
+        if(Object.prototype.toString.call(obj[k])!=='[object Array]'){ obj[k]=[obj[k]]; }
+        if(obj[k].indexOf(v)===-1) obj[k].push(v);
+      }
+    }
   }
-  ctdir_markLoading(form);
-  if(form.requestSubmit){ form.requestSubmit(); } else { form.submit(); }
-}
 
-/* ---------- Change => submit (hero + sidebar) ---------- */
-document.addEventListener("change", function(e){
-  var f=e.target.closest(".ctdir-filter-form,.ctdir-hero-form");
-  if(f){ ctdir_submitNow(f,true); }
-});
-
-/* ---------- Debounce text search ---------- */
-var ctdir_t;
-document.addEventListener("keyup", function(e){
-  if(!e.target.matches("input[type=text]")) return;
-  var f=e.target.closest(".ctdir-filter-form");
-  if(!f) return;
-  clearTimeout(ctdir_t);
-  ctdir_t=setTimeout(function(){ ctdir_submitNow(f,true); }, 500);
-});
-
-/* ---------- Accordion toggle ---------- */
-document.addEventListener("click", function(e){
-  if(e.target.matches(".ctdir-filter .acc > button")){
-    e.preventDefault();
-    var acc=e.target.closest(".acc");
-    var p=acc.querySelector(".panel");
-    var open=acc.classList.toggle("open");
-    if(p) p.style.display=open?"block":"none";
+  function readForm(form){
+    if(!form) return;
+    if(window.FormData){
+      var fd=new FormData(form);
+      fd.forEach(function(v,k){ put(k,v, /\[\]$/.test(k)); });
+    } else {
+      toArray(form.elements).forEach(function(el){
+        if(!el.name) return;
+        if((el.type==='checkbox'||el.type==='radio') && !el.checked) return;
+        put(el.name, el.value, /\[\]$/.test(el.name));
+      });
+    }
   }
-});
 
-/* ---------- Pagination (preserve filters) ---------- */
-document.addEventListener("click", function(e){
-  var a=e.target.closest(".ctdir-pagination a");
-  if(!a) return;
-  var c=a.closest(".ctdir");
-  var f=c?.querySelector(".ctdir-filter-form");
-  if(!f) return;
-  e.preventDefault();
-  var m=a.href.match(/(?:[?&])pg=(\d+)/);
-  var pg=f.querySelector("input[name=pg]")||document.createElement("input");
-  if(!pg.parentNode){ pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
-  pg.value=m?m[1]:1;
-  ctdir_submitNow(f,false);
-});
+  var hero = container.querySelector('.ctdir-hero-form');
+  var side = container.querySelector('.ctdir-filter-form');
+  readForm(hero);
+  readForm(side);
 
-/* ---------- Reset button ---------- */
-document.addEventListener("click", function(e){
-  var btn=e.target.closest(".ctdir-reset");
-  if(!btn) return;
-  e.preventDefault();
-  var f=btn.closest("form"); if(!f) return;
-
-  // reset all form controls
-  f.reset();
-  f.querySelectorAll("select").forEach(function(s){ s.value=""; });
-  f.querySelectorAll("input[type=text],input[type=number]").forEach(function(i){ i.value=""; });
-  f.querySelectorAll("input[type=radio],input[type=checkbox]").forEach(function(i){ i.checked=false; });
-
-  // clear hidden profession & page
-  var prof=f.querySelector("input[name=profession]"); if(prof) prof.value="";
-  var pg=f.querySelector("input[name=pg]"); 
-  if(!pg){ pg=document.createElement("input"); pg.type="hidden"; pg.name="pg"; f.appendChild(pg); }
-  pg.value=1;
-
-  // refresh fee dual slider visuals to bounds
-  f.querySelectorAll(".fee-dual").forEach(function(el){
-    var minBound = +el.getAttribute("data-min") || 0;
-    var maxBound = +el.getAttribute("data-max") || 500;
-    var rMin = el.querySelector(".fee-min");
-    var rMax = el.querySelector(".fee-max");
-    if (rMin){ rMin.value = rMin.getAttribute("min") || minBound; rMin.dispatchEvent(new Event("input", {bubbles:true})); }
-    if (rMax){ rMax.value = rMax.getAttribute("max") || maxBound; rMax.dispatchEvent(new Event("input", {bubbles:true})); }
-    if (el.__ctdirRefresh) el.__ctdirRefresh();
+  // Normalize multi keys
+  ['therapy','service_area','insurance','values','years','credential','session'].forEach(function(k){
+    if (typeof obj[k] !== 'undefined' && Object.prototype.toString.call(obj[k])!=='[object Array]'){
+      obj[k] = [String(obj[k])];
+    }
   });
 
-  ctdir_submitNow(f,true);
+  // ---------- HERO OVERRIDES ----------
+  // If hero has a non-empty single select value, it *overrides* the sidebar for the same key.
+  function heroSelectValue(name){
+    var sel = hero ? hero.querySelector('[name="'+name+'"]') : null;
+    if (!sel) return '';
+    var v = (sel.value||'').trim();
+    return v;
+  }
+  var heroTherapy = heroSelectValue('therapy');         // hero has single "therapy"
+  var heroArea    = heroSelectValue('service_area');    // hero has single "service_area"
+  if (heroTherapy) obj['therapy'] = [heroTherapy];
+  if (heroArea)    obj['service_area'] = [heroArea];
+
+  // pg default
+  if(!obj.pg) obj.pg='1';
+  return obj;
+}
+
+function paramsToQS(obj){
+  var parts=[];
+  for(var k in obj){ if(!obj.hasOwnProperty(k)) continue;
+    var v=obj[k];
+    if(v==null) continue;
+    if(Object.prototype.toString.call(v)==='[object Array]'){
+      for(var i=0;i<v.length;i++) parts.push(enc(k+'[]')+'='+enc(v[i]));
+    } else {
+      parts.push(enc(k)+'='+enc(v));
+    }
+  }
+  return parts.join('&');
+}
+function parseQS(search){
+  var obj={}; if(!search) return obj;
+  if(search.charAt(0)==='?') search=search.slice(1);
+  if(!search) return obj;
+  var pairs=search.split('&');
+  for(var i=0;i<pairs.length;i++){
+    if(!pairs[i]) continue;
+    var kv=pairs[i].split('='), k=dec(kv[0]||''), v=dec(kv[1]||'');
+    var m=k.match(/^(.*)\[\]$/);
+    if(m){ var base=m[1]; if(!obj[base]) obj[base]=[]; obj[base].push(v); }
+    else { if(typeof obj[k]==='undefined') obj[k]=v; else { if(Object.prototype.toString.call(obj[k])!=='[object Array]') obj[k]=[obj[k]]; obj[k].push(v);} }
+  }
+  return obj;
+}
+function syncForms(container, params){
+  function setForm(form){
+    if(!form) return;
+    toArray(form.elements).forEach(function(el){
+      if(!el.name) return;
+      var isArr = /\[\]$/.test(el.name);
+      var key = isArr ? el.name.replace(/\[\]$/,'') : el.name;
+      var val = params[key];
+      if(isArr){
+        var arr = val || [];
+        if(Object.prototype.toString.call(arr)!=='[object Array]') arr=[arr];
+        if(el.type==='checkbox'||el.type==='radio'){ el.checked = arr.indexOf(String(el.value))>-1; }
+        else { el.value = arr[0] || ''; }
+      } else {
+        if(el.type==='checkbox'||el.type==='radio'){ el.checked = String(el.value)===String(val); }
+        else { el.value = (typeof val==='undefined') ? '' : String(val); }
+      }
+    });
+  }
+  setForm(container.querySelector('.ctdir-hero-form'));
+  setForm(container.querySelector('.ctdir-filter-form'));
+}
+
+/* ----- BUILD URLS (with cache-buster), keep seed stable ----- */
+function buildQS(container, resetPage){
+  var obj = collectParams(container);
+  if(resetPage) obj.pg='1';
+  try{ var cur=new URL(window.location.href); var seed=cur.searchParams.get('seed'); if(seed && !obj.seed) obj.seed=seed; }catch(e){}
+  var displayQS = paramsToQS(obj);
+  obj.partial='1';
+  obj._=String(Date.now()); // cache-buster to prevent caches stripping partial
+  var fetchQS = paramsToQS(obj);
+  return {displayQS:displayQS, fetchQS:fetchQS};
+}
+
+/* ----- Fetch partial safely; if full page detected -> navigate ----- */
+function fetchPartial(container, qs, fallbackDisplayQS){
+  var url = window.location.pathname + '?' + qs;
+  markLoading(container);
+
+  // cancel any previous request
+  if (ctdirActiveController && typeof ctdirActiveController.abort === 'function') {
+    try { ctdirActiveController.abort(); } catch(e){}
+  }
+  var controller = (window.AbortController ? new AbortController() : null);
+  ctdirActiveController = controller;
+  var mySeq = ++ctdirReqSeq;
+
+  function done(){ unmarkLoading(container); }
+
+  function handleHTML(html){
+    // accept only the latest response
+    if (mySeq !== ctdirReqSeq) return;
+
+    // Guard: full page returned? navigate instead of injecting
+    var isFull = /<html[\s>]/i.test(html) || (/<header[\s>]/i.test(html) && /<footer[\s>]/i.test(html));
+    if (isFull){
+      var navUrl = window.location.pathname + (fallbackDisplayQS?('?'+fallbackDisplayQS):'');
+      window.location.href = navUrl;
+      return;
+    }
+    var box = container.querySelector('#ctdir-results');
+    if (box) box.innerHTML = html;
+    bindPagination(container);
+  }
+
+  // fetch (with abort) or XHR fallback
+  if (window.fetch){
+    var opt = { headers:{'X-Requested-With':'XMLHttpRequest'} };
+    if (controller) opt.signal = controller.signal;
+    return fetch(url, opt)
+      .then(function(r){ return r.text(); })
+      .then(handleHTML)
+      .catch(function(err){
+        if (err && err.name === 'AbortError') return; // expected
+        var navUrl = window.location.pathname + (fallbackDisplayQS?('?'+fallbackDisplayQS):'');
+        window.location.href = navUrl;
+      })
+      .then(done);
+  } else {
+    try{
+      var xhr=new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+      xhr.onreadystatechange=function(){
+        if(xhr.readyState===4){
+          if(xhr.status>=200 && xhr.status<300){ handleHTML(xhr.responseText); }
+          else{
+            var navUrl = window.location.pathname + (fallbackDisplayQS?('?'+fallbackDisplayQS):'');
+            window.location.href = navUrl;
+          }
+          done();
+        }
+      };
+      xhr.send(null);
+    }catch(e){
+      done();
+      var navUrl = window.location.pathname + (fallbackDisplayQS?('?'+fallbackDisplayQS):'');
+      window.location.href = navUrl;
+    }
+  }
+}
+
+/* ---------- One-open helpers ---------- */
+function ctdir_closeAll(wrap){
+  toArray(wrap.querySelectorAll(".acc")).forEach(function(acc){
+    acc.classList.remove("open");
+    var p = acc.querySelector(".panel");
+    if (p) p.style.display = "none";
+  });
+}
+function ctdir_openThis(acc){
+  var wrap = closest(acc, ".ctdir-filter");
+  if (!wrap) return;
+  ctdir_closeAll(wrap);
+  var p = acc.querySelector(".panel");
+  acc.classList.add("open");
+  if (p) p.style.display = "block";
+}
+
+
+function submitFilters(container, resetPage, push){
+  var pair = buildQS(container, !!resetPage);
+  var displayUrl = window.location.pathname + (pair.displayQS?('?'+pair.displayQS):'');
+  if(push===false){ window.history.replaceState({qs:pair.displayQS}, '', displayUrl); }
+  else { window.history.pushState({qs:pair.displayQS}, '', displayUrl); }
+  return fetchPartial(container, pair.fetchQS, pair.displayQS);
+}
+
+/* ----- Pagination (AJAX) ----- */
+function bindPagination(container){
+  toArray(container.querySelectorAll('#ctdir-results .ctdir-pagination a')).forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var base = collectParams(container);
+      var m = a.href.match(/(?:[?&])pg=(\d+)/);
+      base.pg = m ? m[1] : '1';
+      var displayQS = paramsToQS(base);
+      window.history.pushState({qs:displayQS}, '', window.location.pathname + (displayQS?('?'+displayQS):''));
+      base.partial='1'; base._=String(Date.now());
+      fetchPartial(container, paramsToQS(base), displayQS);
+    });
+  });
+}
+
+/* ----- Back/forward support ----- */
+window.addEventListener('popstate', function(e){
+  var c = document.querySelector('.ctdir'); if(!c) return;
+  var qs = (e && e.state && e.state.qs) ? e.state.qs : (window.location.search||'').replace(/^\?/,'');
+  var params = parseQS(qs);
+  syncForms(c, params);
+  var obj = params; obj.partial='1'; obj._=String(Date.now());
+  fetchPartial(c, paramsToQS(obj), qs);
 });
 
-/* ---------- Scope spinner on native submit ---------- */
-document.addEventListener("submit", function(e){
-  var s=e.target.closest(".ctdir")?.querySelector(".ctdir-cols section");
-  if(s) s.classList.add("is-loading");
-}, true);
+/* ----- Events ----- */
+document.addEventListener('change', function(e){
+  var c = closest(e.target, '.ctdir'); if(!c) return;
+  if(!closest(e.target, '.ctdir-filter-form') && !closest(e.target, '.ctdir-hero-form')) return;
+  submitFilters(c, true, true);
+});
+var debounce;
+document.addEventListener('keyup', function(e){
+  if(!matches(e.target, 'input[type=text]')) return;
+  var c = closest(e.target, '.ctdir'); if(!c) return;
+  if(!closest(e.target, '.ctdir-filter-form')) return;
+  clearTimeout(debounce);
+  debounce = setTimeout(function(){ submitFilters(c, true, true); }, 400);
+});
 
-/* =======================================================
-   Dual fee slider (two thumbs) with tooltips + click track
-   ======================================================= */
-(function(){
-  function clamp(v,min,max){ v=+v; return isNaN(v)?min:Math.min(max, Math.max(min,v)); }
-  function pct(v,min,max){ return ((v-min)/(max-min))*100; }
 
-  function initDualFee(el){
-    if (!el.__ctdirInited) el.__ctdirInited = {};
-    var minBound = +el.getAttribute("data-min") || 0;
-    var maxBound = +el.getAttribute("data-max") || 500;
-    var step     = +el.getAttribute("data-step") || 5;
 
-    var rMin  = el.querySelector("input.fee-min");
-    var rMax  = el.querySelector("input.fee-max");
-    var fill  = el.querySelector(".fill");
-    var outL  = el.querySelector(".fee-left");
-    var outR  = el.querySelector(".fee-right");
-    var leftVal  = outL ? outL.querySelector(".fee-val") : null;
-    var rightVal = outR ? outR.querySelector(".fee-val") : null;
-    var track = el.querySelector(".fee-track");
-    if(!rMin || !rMax || !fill || !track) return;
 
-    // tooltips (auto-create)
-    var tipMin = track.querySelector(".fee-tip.min");
-    var tipMax = track.querySelector(".fee-tip.max");
-    if(!tipMin){ tipMin = document.createElement("span"); tipMin.className = "fee-tip min"; track.appendChild(tipMin); }
-    if(!tipMax){ tipMax = document.createElement("span"); tipMax.className = "fee-tip max"; track.appendChild(tipMax); }
+// --- One-open accordion (on click) ---
+document.addEventListener("click", function(e){
+  if (!matches(e.target, ".ctdir-filter .acc > button")) return;
+  e.preventDefault();
 
-    function sync(src){
-      var v1 = clamp(parseFloat(rMin.value)||minBound, minBound, maxBound);
-      var v2 = clamp(parseFloat(rMax.value)||maxBound, minBound, maxBound);
+  var acc  = closest(e.target, ".acc");
+  if (!acc) return;
 
-      // keep one step between
-      if (v1 > v2 - step){
-        if (src === rMin) { v2 = clamp(v1 + step, minBound, maxBound); rMax.value = v2; }
-        else              { v1 = clamp(v2 - step, minBound, maxBound); rMin.value = v1; }
+  var isOpen = acc.classList.contains("open");
+  if (isOpen){
+    acc.classList.remove("open");
+    var p = acc.querySelector(".panel");
+    if (p) p.style.display = "none";
+  } else {
+    ctdir_openThis(acc);
+  }
+});
+
+
+
+
+
+
+document.addEventListener('click', function(e){
+  var btn = closest(e.target, '.ctdir-reset'); if(!btn) return;
+  e.preventDefault();
+  var c = closest(btn, '.ctdir'); if(!c) return;
+  ['.ctdir-hero-form','.ctdir-filter-form'].forEach(function(sel){
+    var f=c.querySelector(sel); if(!f) return;
+    if(f.reset) f.reset();
+    toArray(f.querySelectorAll('select')).forEach(function(s){ s.value=''; });
+    toArray(f.querySelectorAll('input[type=text],input[type=number]')).forEach(function(i){ i.value=''; });
+    toArray(f.querySelectorAll('input[type=radio],input[type=checkbox]')).forEach(function(i){ i.checked=false; });
+    var pg=f.querySelector('input[name=pg]'); if(!pg){ pg=document.createElement('input'); pg.type='hidden'; pg.name='pg'; f.appendChild(pg); } pg.value='1';
+    var prof=f.querySelector('input[name="profession"]'); if(prof) prof.value='';
+  });
+  submitFilters(c, true, true);
+});
+
+// --- Auto-open the first active accordion on load ---
+document.addEventListener("DOMContentLoaded", function(){
+  var wrap = document.querySelector(".ctdir-filter");
+  if (!wrap) return;
+
+  var accs = toArray(wrap.querySelectorAll(".acc"));
+  var toOpen = null;
+
+  for (var i=0;i<accs.length;i++){
+    var acc   = accs[i];
+    var panel = acc.querySelector(".panel");
+    if (!panel) continue;
+
+    var hasChecked = panel.querySelector("input[type=checkbox]:checked, input[type=radio]:checked");
+    var inputs = toArray(panel.querySelectorAll("input[type=text], input[type=number], select"));
+    var hasValue = false;
+    for (var j=0;j<inputs.length;j++){
+      var el = inputs[j];
+      if (el.tagName === "SELECT") { if (el.value && el.value !== "") { hasValue = true; break; } }
+      else {
+        var v = (el.value || "").replace(/^\s+|\s+$/g, "");
+        if (v !== "") { hasValue = true; break; }
       }
-
-      var p1 = pct(v1, minBound, maxBound);
-      var p2 = pct(v2, minBound, maxBound);
-      fill.style.left  = p1 + "%";
-      fill.style.right = (100 - p2) + "%";
-
-      // tooltips
-      tipMin.textContent = "$" + Math.round(v1);
-      tipMax.textContent = "$" + Math.round(v2);
-      tipMin.style.left = p1 + "%";
-      tipMax.style.left = p2 + "%";
-      var close = (p2 - p1) < 6;
-      tipMin.classList.toggle("stack", close);
-      tipMax.classList.toggle("stack", close);
-
-      // keep bound labels stable (do NOT overwrite inner spans)
-      if (leftVal)  leftVal.textContent  = Math.round(minBound);
-      if (rightVal) rightVal.textContent = Math.round(maxBound);
     }
 
-    // thumb z-index management
-    function bringToFront(input){
-      rMin.classList.remove("on-top");
-      rMax.classList.remove("on-top");
-      input.classList.add("on-top");
+    if (hasChecked || hasValue){ toOpen = acc; break; }
+  }
+
+  if (toOpen) ctdir_openThis(toOpen);
+});
+
+// --- When a control changes, auto-open its accordion ---
+document.addEventListener("change", function(e){
+  var acc = closest(e.target, ".acc");
+  if (acc) ctdir_openThis(acc);
+});
+
+
+
+/* ===== Fee slider (unchanged core) ===== */
+(function(){
+  function clamp(v,min,max){v=+v;return isNaN(v)?min:Math.min(max,Math.max(min,v))}
+  function pct(v,min,max){return ((v-min)/(max-min))*100}
+  function initDualFee(el){
+    if(!el.__ctdirInited) el.__ctdirInited={};
+    var minBound=+el.getAttribute("data-min")||0;
+    var maxBound=+el.getAttribute("data-max")||500;
+    var step=+el.getAttribute("data-step")||5;
+    var rMin=el.querySelector("input.fee-min");
+    var rMax=el.querySelector("input.fee-max");
+    var fill=el.querySelector(".fill");
+    var outL=el.querySelector(".fee-left");
+    var outR=el.querySelector(".fee-right");
+    var leftVal=outL?outL.querySelector(".fee-val"):null;
+    var rightVal=outR?outR.querySelector(".fee-val"):null;
+    var track=el.querySelector(".fee-track");
+    if(!rMin||!rMax||!fill||!track) return;
+    var tipMin=track.querySelector(".fee-tip.min");
+    var tipMax=track.querySelector(".fee-tip.max");
+    if(!tipMin){tipMin=document.createElement("span");tipMin.className="fee-tip min";track.appendChild(tipMin)}
+    if(!tipMax){tipMax=document.createElement("span");tipMax.className="fee-tip max";track.appendChild(tipMax)}
+    function sync(src){
+      var v1=clamp(parseFloat(rMin.value)||minBound,minBound,maxBound);
+      var v2=clamp(parseFloat(rMax.value)||maxBound,minBound,maxBound);
+      if(v1>v2-step){ if(src===rMin){ v2=clamp(v1+step,minBound,maxBound); rMax.value=v2; } else { v1=clamp(v2-step,minBound,maxBound); rMin.value=v1; } }
+      var p1=pct(v1,minBound,maxBound), p2=pct(v2,minBound,maxBound);
+      fill.style.left=p1+"%"; fill.style.right=(100-p2)+"%";
+      tipMin.textContent="$"+Math.round(v1); tipMax.textContent="$"+Math.round(v2);
+      tipMin.style.left=p1+"%"; tipMax.style.left=p2+"%";
+      var close=(p2-p1)<6; tipMin.classList.toggle("stack",close); tipMax.classList.toggle("stack",close);
+      if(leftVal) leftVal.textContent=Math.round(minBound);
+      if(rightVal) rightVal.textContent=Math.round(maxBound);
     }
-    ["pointerdown","mousedown","touchstart"].forEach(function(evt){
-      rMin.addEventListener(evt, function(){ bringToFront(rMin); });
-      rMax.addEventListener(evt, function(){ bringToFront(rMax); });
+    function bringToFront(i){rMin.classList.remove("on-top");rMax.classList.remove("on-top");i.classList.add("on-top")}
+    ["pointerdown","mousedown","touchstart"].forEach(function(evt){rMin.addEventListener(evt,function(){bringToFront(rMin)});rMax.addEventListener(evt,function(){bringToFront(rMax)})});
+    track.addEventListener("pointerdown",function(e){
+      if(e.target===rMin||e.target===rMax) return;
+      var rect=track.getBoundingClientRect(); var p=(e.clientX-rect.left)/rect.width;
+      var raw=minBound + p*(maxBound-minBound); var val=Math.round(raw/step)*step;
+      var curMin=parseFloat(rMin.value)||minBound; var curMax=parseFloat(rMax.value)||maxBound;
+      var target=(Math.abs(val-curMin)<=Math.abs(val-curMax))?rMin:rMax;
+      target.value=val; bringToFront(target); sync(target); target.dispatchEvent(new Event("change",{bubbles:true}));
     });
-
-    // click track to move nearest thumb
-    track.addEventListener("pointerdown", function(e){
-      if (e.target === rMin || e.target === rMax) return; // native drag
-      var rect = track.getBoundingClientRect();
-      var p = (e.clientX - rect.left) / rect.width; // 0..1
-      var raw = minBound + p * (maxBound - minBound);
-      var val = Math.round(raw / step) * step;
-      var curMin = parseFloat(rMin.value)||minBound;
-      var curMax = parseFloat(rMax.value)||maxBound;
-      var target = (Math.abs(val - curMin) <= Math.abs(val - curMax)) ? rMin : rMax;
-      target.value = val;
-      bringToFront(target);
-      sync(target);
-      target.dispatchEvent(new Event("change", {bubbles:true}));
-    });
-
-    if (!el.__ctdirInited.listeners){
-      rMin.addEventListener("input", function(){ sync(rMin); });
-      rMax.addEventListener("input", function(){ sync(rMax); });
-      el.__ctdirInited.listeners = true;
-    }
-
-    // external refresh hook (used by reset)
-    el.__ctdirRefresh = function(){
-      if (!rMin.value) rMin.value = rMin.getAttribute("min") || minBound;
-      if (!rMax.value) rMax.value = rMax.getAttribute("max") || maxBound;
-      if (leftVal)  leftVal.textContent  = Math.round(minBound);
-      if (rightVal) rightVal.textContent = Math.round(maxBound);
-      sync();
-    };
-
+    if(!el.__ctdirInited.listeners){ rMin.addEventListener("input",function(){sync(rMin)}); rMax.addEventListener("input",function(){sync(rMax)}); el.__ctdirInited.listeners=true; }
+    el.__ctdirRefresh=function(){ if(!rMin.value) rMin.value=rMin.getAttribute("min")||minBound; if(!rMax.value) rMax.value=rMax.getAttribute("max")||maxBound; if(leftVal) leftVal.textContent=Math.round(minBound); if(rightVal) rightVal.textContent=Math.round(maxBound); sync(); };
     el.__ctdirRefresh();
   }
+  function initAll(){ toArray(document.querySelectorAll(".fee-dual")).forEach(initDualFee) }
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded", initAll); } else { initAll(); }
+})();
+JS;
 
-  function initAll(){
-    document.querySelectorAll(".fee-dual").forEach(initDualFee);
-  }
-
-  if (document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", initAll);
-  } else {
-    initAll();
-  }
-})();';
-
-	wp_register_script($handle, '', [], '0.3.2', true);
+	wp_register_script($handle, '', [], '0.4.1', true);
 	wp_add_inline_script($handle, $js);
 	wp_enqueue_script($handle);
 });
@@ -344,29 +525,20 @@ function ct_dir_card_image_size()
 {
 	return 'large';
 }
-
 function ct_dir_profile_image_url($post_id)
 {
-	$post_id = (int) $post_id;
-	// 1) rcp_photo from ct-core
+	$post_id = (int)$post_id;
 	$photo = get_post_meta($post_id, 'rcp_photo', true);
 	if ($photo && filter_var($photo, FILTER_VALIDATE_URL)) return $photo;
-	// 2) Featured image
 	if (function_exists('get_the_post_thumbnail_url')) {
 		$img = get_the_post_thumbnail_url($post_id, ct_dir_card_image_size());
 		if ($img) return $img;
 	}
-	// 3) ct-core placeholder (if available)
-	if (defined('CT_CORE_PLUGIN_URL')) {
-		return CT_CORE_PLUGIN_URL . '/dist/img/profile.png';
-	}
-	// 4) generic
+	if (defined('CT_CORE_PLUGIN_URL')) return CT_CORE_PLUGIN_URL . '/dist/img/profile.png';
 	return apply_filters('ct_dir/placeholder_image', 'https://www.gravatar.com/avatar/?d=mp&s=420');
 }
-
 function ct_dir_taxonomies()
 {
-	// map used by template and query builder
 	return array(
 		'profession'   => 'ct_profession',
 		'service_area' => 'service_area',
@@ -381,54 +553,48 @@ function ct_dir_taxonomies()
 		'therapy'      => 'type-of-therapy',
 	);
 }
-
 function ct_dir_get_query()
 {
+	$service_area = isset($_GET['service_area']) ? $_GET['service_area'] : [];
+	if (!is_array($service_area) && $service_area !== '') $service_area = array($service_area);
+	$therapy = isset($_GET['therapy']) ? $_GET['therapy'] : [];
+	if (!is_array($therapy) && $therapy !== '') $therapy = array($therapy);
+
 	$q = array(
 		's'            => isset($_GET['q']) ? sanitize_text_field($_GET['q']) : '',
 		'pg'           => isset($_GET['pg']) ? max(1, intval($_GET['pg'])) : 1,
 		'zip'          => isset($_GET['zip']) ? preg_replace('/[^0-9]/', '', (string)$_GET['zip']) : '',
 		'radius'       => isset($_GET['radius']) ? intval($_GET['radius']) : 50,
 		'profession'   => isset($_GET['profession']) ? absint($_GET['profession']) : 0,
-		'service_area' => array_map('absint', isset($_GET['service_area']) ? (array)$_GET['service_area'] : []),
+
+		'service_area' => array_map('absint', (array)$service_area),
+		'therapy'      => array_map('absint', (array)$therapy),
+
 		'insurance'    => array_map('absint', isset($_GET['insurance']) ? (array)$_GET['insurance'] : []),
 		'values'       => array_map('absint', isset($_GET['values']) ? (array)$_GET['values'] : []),
 		'years'        => array_map('absint', isset($_GET['years']) ? (array)$_GET['years'] : []),
 		'credential'   => array_map('absint', isset($_GET['credential']) ? (array)$_GET['credential'] : []),
+
 		'specialties'  => isset($_GET['specialties']) ? absint($_GET['specialties']) : 0,
 		'modality'     => isset($_GET['modality']) ? absint($_GET['modality']) : 0,
 		'language'     => isset($_GET['language']) ? absint($_GET['language']) : 0,
 		'faith'        => isset($_GET['faith']) ? absint($_GET['faith']) : 0,
+
 		'fees_min'     => isset($_GET['fees_min']) ? floatval($_GET['fees_min']) : 0,
 		'fees_max'     => isset($_GET['fees_max']) ? floatval($_GET['fees_max']) : 0,
+
 		'session'      => isset($_GET['session']) ? (array)$_GET['session'] : [],
-		'therapy' => array_map('absint', isset($_GET['therapy']) ? (array) $_GET['therapy'] : []),
 	);
+
 	return $q;
 }
-
-// random
 function ct_dir_is_unfiltered($q)
 {
-	return empty($q['s'])
-		&& empty($q['zip'])
-		&& empty($q['service_area'])
-		&& empty($q['insurance'])
-		&& empty($q['values'])
-		&& empty($q['years'])
-		&& empty($q['credential'])
-		&& empty($q['specialties'])
-		&& empty($q['modality'])
-		&& empty($q['language'])
-		&& empty($q['faith'])
-		&& empty($q['therapy'])
-		&& empty($q['session'])
-		&& (empty($q['fees_min']) && empty($q['fees_max']))
-		&& empty($q['profession']); // include this if you consider profession a filter
+	return empty($q['s']) && empty($q['zip']) && empty($q['service_area']) && empty($q['insurance']) &&
+		empty($q['values']) && empty($q['years']) && empty($q['credential']) && empty($q['specialties']) &&
+		empty($q['modality']) && empty($q['language']) && empty($q['faith']) && empty($q['therapy']) &&
+		empty($q['session']) && (empty($q['fees_min']) && empty($q['fees_max'])) && empty($q['profession']);
 }
-
-
-
 
 /**
  * Build WP_Query based on request.
@@ -449,16 +615,8 @@ function ct_dir_build_query($q, $tax)
 	if (!empty($q['language']))     $tax_query[] = array('taxonomy' => $tax['language'],    'field' => 'term_id', 'terms' => array($q['language']));
 	if (!empty($q['faith']))        $tax_query[] = array('taxonomy' => $tax['faith'],       'field' => 'term_id', 'terms' => array($q['faith']));
 	if (!empty($q['therapy'])) {
-		$tax_query[] = array(
-			'taxonomy' => $tax['therapy'],       // 'type-of-therapy'
-			'field'    => 'term_id',
-			'terms'    => $q['therapy'],         // already an array
-		);
+		$tax_query[] = array('taxonomy' => $tax['therapy'], 'field' => 'term_id', 'terms' => $q['therapy']);
 	}
-	if (ct_dir_is_unfiltered($q)) {
-		$args['orderby'] = 'rand';
-	}
-
 
 	$meta_query = array('relation' => 'AND');
 
@@ -499,12 +657,10 @@ function ct_dir_build_query($q, $tax)
 	if (count($meta_query) > 1) $args['meta_query'] = $meta_query;
 	if (!empty($post__in))      $args['post__in']   = $post__in;
 
-	// Seeded random order when UNFILTERED
+	// Seeded random when UNFILTERED
 	$remove_orderby_filter = null;
 	if (ct_dir_is_unfiltered($q)) {
 		$seed = isset($_GET['seed']) ? sanitize_text_field($_GET['seed']) : wp_generate_password(6, false);
-
-		// Force RAND(seed) for this query only
 		add_filter('posts_orderby', $remove_orderby_filter = function ($orderby) use ($seed) {
 			global $wpdb;
 			return "RAND('" . esc_sql($seed) . "')";
@@ -513,66 +669,48 @@ function ct_dir_build_query($q, $tax)
 
 	$wpq = new WP_Query($args);
 
-	if ($remove_orderby_filter) {
-		remove_filter('posts_orderby', $remove_orderby_filter);
-	}
+	if ($remove_orderby_filter) remove_filter('posts_orderby', $remove_orderby_filter);
 
 	return $wpq;
 }
-
 
 /**
  * ----------------------------------------
  * Shortcode: [ct_directory]
  * ----------------------------------------
  */
-// add_shortcode('ct_directory', function ($atts = array(), $content = '') {
-// 	$tax  = ct_dir_taxonomies();
-// 	$q    = ct_dir_get_query();
-// 	$qry  = ct_dir_build_query($q, $tax);
-// 	$paged = max(1, (int)$q['pg']);
-
-// 	ob_start();
-// 	$tpl = CTDIR_PLUGIN_DIR . 'templates/directory.php';
-// 	if (!file_exists($tpl)) {
-// 		echo '<p>Template not found: templates/directory.php</p>';
-// 	} else {
-// 		// Make vars available to template scope: $q, $tax, $qry, $paged
-// 		include $tpl;
-// 	}
-// 	return ob_get_clean();
-// });
-
-// random paginations
 add_shortcode('ct_directory', function ($atts = array(), $content = '') {
 	$tax  = ct_dir_taxonomies();
 	$q    = ct_dir_get_query();
 
-	// If unfiltered and no seed yet, create one so pagination keeps a stable random order
+	// Seed only when unfiltered
 	if (ct_dir_is_unfiltered($q) && empty($_GET['seed'])) {
 		$_GET['seed'] = wp_generate_password(6, false);
 	}
 
-	$qry  = ct_dir_build_query($q, $tax);
+	$qry   = ct_dir_build_query($q, $tax);
 	$paged = max(1, (int)$q['pg']);
 
+	// Partial path
+	if (isset($_GET['partial']) && $_GET['partial'] == '1') {
+		$results_tpl = CTDIR_PLUGIN_DIR . 'templates/parts/results.php';
+		if (!file_exists($results_tpl)) return '<!-- Missing partial: templates/parts/results.php -->';
+		ob_start();
+		include $results_tpl;
+		return ob_get_clean();
+	}
+
+	// Full page path
 	ob_start();
 	$tpl = CTDIR_PLUGIN_DIR . 'templates/directory.php';
-	if (!file_exists($tpl)) {
-		echo '<p>Template not found: templates/directory.php</p>';
-	} else {
-		include $tpl;
-	}
+	if (file_exists($tpl)) include $tpl;
+	else echo '<p>Template not found: templates/directory.php</p>';
 	return ob_get_clean();
 });
-
-
 
 /**
  * ----------------------------------------
  * REST: Single profile JSON (safe)
- * GET /wp-json/ct-dir/v1/profile?id=…|slug=…
- * city/state returned as strings
  * ----------------------------------------
  */
 if (!function_exists('ctdir_register_profile_route')) {
@@ -587,11 +725,9 @@ if (!function_exists('ctdir_register_profile_route')) {
 	}
 	add_action('rest_api_init', 'ctdir_register_profile_route');
 }
-
 if (!function_exists('ctdir_rest_profile_callback')) {
 	function ctdir_rest_profile_callback($req)
 	{
-		// helpers
 		$meta_single = function ($post_id, $key) {
 			$v = get_post_meta($post_id, $key, true);
 			$v = maybe_unserialize($v);
@@ -609,116 +745,70 @@ if (!function_exists('ctdir_rest_profile_callback')) {
 			return 'https://www.gravatar.com/avatar/?d=mp&s=420';
 		};
 
-		$id   = absint(isset($req['id']) ? $req['id'] : 0);
+		$id = absint(isset($req['id']) ? $req['id'] : 0);
 		$slug = sanitize_title(isset($req['slug']) ? $req['slug'] : '');
 
-		// ---------- ID path (publish-only) ----------
 		if ($id) {
 			$p = get_post($id);
 			if (!$p || is_wp_error($p) || $p->post_type !== 'ct-user-profile' || $p->post_status !== 'publish') {
 				return new \WP_Error('not_found', 'Profile not found', array('status' => 404));
 			}
 		}
-
-		// ---------- Slug path (publish-only) ----------
 		if (!$id && $slug) {
-			// 1) Try name query (publish only)
-			$q = new \WP_Query(array(
-				'post_type'      => 'ct-user-profile',
-				'name'           => $slug,
-				'post_status'    => 'publish',
-				'fields'         => 'ids',
-				'posts_per_page' => 1,
-				'no_found_rows'  => true,
-			));
-			if ($q->have_posts()) {
-				$id = (int)$q->posts[0];
-			}
-
-			// 2) Fallback: get_page_by_path limited to publish (some hosts resolve CPTs differently)
+			$q = new \WP_Query(array('post_type' => 'ct-user-profile', 'name' => $slug, 'post_status' => 'publish', 'fields' => 'ids', 'posts_per_page' => 1, 'no_found_rows' => true));
+			if ($q->have_posts()) $id = (int)$q->posts[0];
 			if (!$id && function_exists('get_page_by_path')) {
 				$p2 = get_page_by_path($slug, OBJECT, 'ct-user-profile');
-				if ($p2 && !is_wp_error($p2) && $p2->post_status === 'publish') {
-					$id = (int)$p2->ID;
-				}
+				if ($p2 && !is_wp_error($p2) && $p2->post_status === 'publish') $id = (int)$p2->ID;
 			}
-
-			// 3) Safety: direct SQL by post_name (publish only)
 			if (!$id) {
 				global $wpdb;
 				$maybe_id = $wpdb->get_var($wpdb->prepare(
-					"SELECT ID FROM {$wpdb->posts}
-             WHERE post_type=%s AND post_status='publish' AND post_name=%s
-             LIMIT 1",
+					"SELECT ID FROM {$wpdb->posts} WHERE post_type=%s AND post_status='publish' AND post_name=%s LIMIT 1",
 					'ct-user-profile',
 					$slug
 				));
 				if ($maybe_id) $id = (int)$maybe_id;
 			}
 		}
+		if (!$id) return new \WP_Error('not_found', 'Profile not found', array('status' => 404));
 
-		if (!$id) {
-			return new \WP_Error('not_found', 'Profile not found', array('status' => 404));
-		}
-
-		// Normalize fields
-		$city  = $meta_single($id, 'rcp_city');
+		$city = $meta_single($id, 'rcp_city');
 		$state = $meta_single($id, 'rcp_state');
 		if ($state === '' && taxonomy_exists('service_area')) {
 			$terms = wp_get_post_terms($id, 'service_area');
-			if (!is_wp_error($terms) && !empty($terms)) {
-				$state = (string)$terms[0]->name;
-			}
+			if (!is_wp_error($terms) && !empty($terms)) $state = (string)$terms[0]->name;
 		}
 
-		// Taxonomies (publish-safe retrieval)
 		$tax_map = array();
-		$maybe_taxes = array(
-			'faith',
-			'user_language',
-			'modality',
-			'specialties-service',
-			'type-of-primary-credential',
-			'type-of-therapy',
-			'service_area',
-			'ct_profile_insurance',
-			'ct_profile_values',
-			'ct_years_of_experience',
-			'ct_profession'
-		);
+		$maybe_taxes = array('faith', 'user_language', 'modality', 'specialties-service', 'type-of-primary-credential', 'type-of-therapy', 'service_area', 'ct_profile_insurance', 'ct_profile_values', 'ct_years_of_experience', 'ct_profession');
 		foreach ($maybe_taxes as $tx) {
 			if (!taxonomy_exists($tx)) continue;
 			$t = wp_get_post_terms($id, $tx);
 			if (is_wp_error($t) || empty($t)) continue;
 			$tax_map[$tx] = array_map(function ($term) {
-				return array(
-					'id'   => (int)$term->term_id,
-					'slug' => $term->slug,
-					'name' => $term->name
-				);
+				return array('id' => (int)$term->term_id, 'slug' => $term->slug, 'name' => $term->name);
 			}, $t);
 		}
 
 		return array(
-			'id'    => (int)$id,
+			'id' => (int)$id,
 			'title' => get_the_title($id),
-			'url'   => get_permalink($id),
-			'city'  => $city,
+			'url' => get_permalink($id),
+			'city' => $city,
 			'state' => $state,
-			'lat'   => $meta_single($id, '_ct_latitude'),
-			'lng'   => $meta_single($id, '_ct_longitude'),
+			'lat' => $meta_single($id, '_ct_latitude'),
+			'lng' => $meta_single($id, '_ct_longitude'),
 			'photo' => $profile_image($id),
-			'meta'  => get_post_meta($id),  // left raw for inspection
+			'meta' => get_post_meta($id),
 			'taxonomies' => $tax_map,
 		);
 	}
 }
 
-
 /**
  * ----------------------------------------
  * Distance filter using ct-core ZIP→coords
- *  apply_filters('ct_dir/filter_ids_by_distance', [], $zip, $miles)
  * ----------------------------------------
  */
 add_filter('ct_dir/filter_ids_by_distance', function ($ids, $zip, $miles) {
